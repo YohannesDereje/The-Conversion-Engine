@@ -1,16 +1,35 @@
-{
-  "avg_agent_cost": 0.0199,
-  "domain": "retail",
-  "evaluated_simulations": 150,
-  "git_commit": "d11a97072c49d093f7b5a3e4fe9da95b490d43ba",
-  "infra_error_count": 0,
-  "num_trials": 5,
-  "p50_latency_seconds": 105.9521,
-  "p95_latency_seconds": 551.6491,
-  "pass_at_1": 0.7267,
-  "pass_at_1_ci_95": [
-    0.6504,
-    0.7917
-  ],
-  "total_tasks": 30
-}
+[
+  {
+    "run_id": "baseline",
+    "model": "openrouter/qwen/qwen3-next-80b-a3b-thinking",
+    "domain": "retail",
+    "slice": "dev",
+    "n_tasks": 30,
+    "n_trials": 5,
+    "pass_at_1_mean": 0.7267,
+    "ci_lower": 0.6504,
+    "ci_upper": 0.7917,
+    "cost_usd": 0.597,
+    "avg_cost_per_task": 0.0199,
+    "wall_clock_p50_s": 105.9521,
+    "wall_clock_p95_s": 551.6491,
+    "timestamp": "2026-04-22T00:00:00Z",
+    "note": "facilitator-provided baseline"
+  },
+  {
+    "run_id": "f87be03e",
+    "model": "openrouter/qwen/qwen3-235b-a22b",
+    "domain": "retail",
+    "slice": "dev",
+    "n_tasks": 30,
+    "n_trials": 1,
+    "pass_at_1_mean": 0.2667,
+    "ci_lower": 0.1418,
+    "ci_upper": 0.4445,
+    "cost_usd": 0.0,
+    "avg_cost_per_task": 0.0,
+    "wall_clock_p50_s": 97.1959,
+    "wall_clock_p95_s": 245.8876,
+    "timestamp": "2026-04-23T19:38:01.240510+00:00"
+  }
+]
