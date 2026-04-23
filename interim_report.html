@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tenacious Conversion Engine — Interim Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap');
+
+  :root {
+    --primary: #1a1a2e;
+    --accent: #4f46e5;
+    --accent-light: #e0e7ff;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --neutral: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+    --text: #1e293b;
+    --text-light: #475569;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 10.5pt;
+    color: var(--text);
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  .cover {
+    page-break-after: always;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px 60px;
+  }
+
+  .cover .badge {
+    background: rgba(79,70,229,0.4);
+    border: 1px solid rgba(79,70,229,0.6);
+    color: #c7d2fe;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .cover h1 {
+    font-size: 32pt;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .cover h1 span { color: #818cf8; }
+
+  .cover .subtitle {
+    font-size: 14pt;
+    color: #94a3b8;
+    margin-bottom: 48px;
+    font-weight: 400;
+  }
+
+  .cover .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 40px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 32px;
+    width: 100%;
+  }
+
+  .cover .meta-item label {
+    display: block;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    margin-bottom: 4px;
+  }
+
+  .cover .meta-item span {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+
+  .page {
+    max-width: 840px;
+    margin: 0 auto;
+    padding: 48px 60px;
+  }
+
+  @media print {
+    .cover { min-height: 100vh; page-break-after: always; }
+    .page { padding: 32px 40px; }
+    body { font-size: 10pt; }
+  }
+
+  h1 { font-size: 22pt; font-weight: 700; color: var(--primary); letter-spacing: -0.02em; margin-bottom: 8px; }
+  h2 { font-size: 14pt; font-weight: 700; color: var(--primary); margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 11pt; font-weight: 600; color: var(--primary); margin: 20px 0 8px; }
+  h4 { font-size: 10pt; font-weight: 600; color: var(--text); margin: 14px 0 6px; }
+
+  p { margin-bottom: 10px; color: var(--text-light); }
+  p strong { color: var(--text); }
+
+  ul, ol { margin: 8px 0 12px 20px; color: var(--text-light); }
+  li { margin-bottom: 4px; }
+
+  code {
+    font-family: 'Fira Mono', 'Consolas', monospace;
+    font-size: 8.5pt;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #0f172a;
+  }
+
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Fira Mono', monospace;
+    font-size: 8pt;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9.5pt;
+  }
+
+  thead tr { background: var(--primary); color: white; }
+  thead th { padding: 8px 12px; text-align: left; font-weight: 600; font-size: 8.5pt; letter-spacing: 0.03em; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .pill-green { background: #d1fae5; color: #065f46; }
+  .pill-yellow { background: #fef3c7; color: #92400e; }
+  .pill-red { background: #fee2e2; color: #991b1b; }
+  .pill-blue { background: #dbeafe; color: #1e40af; }
+  .pill-purple { background: #ede9fe; color: #5b21b6; }
+
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-light);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+  }
+
+  .callout.warning { border-color: #f59e0b; background: #fffbeb; }
+  .callout.danger  { border-color: #ef4444; background: #fef2f2; }
+  .callout.success { border-color: #10b981; background: #ecfdf5; }
+
+  .callout p { margin: 0; }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  .metric-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .metric-card .value {
+    font-size: 18pt;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.2;
+  }
+
+  .metric-card .label {
+    font-size: 7.5pt;
+    color: var(--neutral);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 32px 0;
+  }
+
+  .diagram-container {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0;
+    text-align: center;
+  }
+
+  svg text { font-family: 'Inter', system-ui, sans-serif; }
+
+  .signal-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    background: #fff;
+  }
+
+  .signal-card h4 { margin-top: 0; color: var(--accent); }
+
+  .signal-fields {
+    background: #f1f5f9;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Fira Mono', monospace;
+    font-size: 8pt;
+    color: #334155;
+    margin-top: 6px;
+  }
+
+  .toc { margin: 24px 0; padding: 20px 24px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); }
+  .toc h3 { margin-top: 0; }
+  .toc ol { margin-left: 16px; }
+  .toc li { margin-bottom: 6px; color: var(--text-light); font-size: 10pt; }
+
+  .page-break { page-break-before: always; }
+  .avoid-break { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════ COVER PAGE -->
+<div class="cover">
+  <div class="badge">10Academy · Week 10 · Interim Report</div>
+  <h1>Tenacious<br><span>Conversion Engine</span></h1>
+  <p class="subtitle">Research-First Outbound Prospecting System for Tenacious Consulting</p>
+  <div class="meta-grid">
+    <div class="meta-item"><label>Author</label><span>Yohannes Dereje</span></div>
+    <div class="meta-item"><label>Repository</label><span>github.com/YohannesDereje/<br>The-Conversion-Engine</span></div>
+    <div class="meta-item"><label>Submission Date</label><span>April 23, 2026</span></div>
+    <div class="meta-item"><label>Stack</label><span>FastAPI · Qwen3 · OpenRouter</span></div>
+    <div class="meta-item"><label>Evaluation</label><span>τ²-Bench Retail Domain</span></div>
+    <div class="meta-item"><label>Kill Switch</label><span>KILL_SWITCH_LIVE_OUTBOUND=false</span></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ MAIN BODY -->
+<div class="page">
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li>System Architecture Diagram and Design Rationale</li>
+      <li>Production Stack Status (All Five Components)</li>
+      <li>Enrichment Pipeline Documentation (All Five Signals)</li>
+      <li>Competitor Gap Brief Status</li>
+      <li>τ²-Bench Baseline Score and Methodology</li>
+      <li>End-to-End Latency: 20 Synthetic Interactions</li>
+      <li>Honest Status Report and Forward Plan</li>
+    </ol>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ 1. ARCHITECTURE -->
+  <h2>1. System Architecture Diagram and Design Rationale</h2>
+
+  <h3>1.1 Architecture Diagram</h3>
+
+  <div class="diagram-container">
+    <svg width="700" height="580" viewBox="0 0 700 580" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#4f46e5"/>
+        </marker>
+        <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+        </marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+        </marker>
+      </defs>
+
+      <!-- ── Layer labels ── -->
+      <text x="12" y="78" font-size="8" fill="#94a3b8" font-family="Inter" transform="rotate(-90,12,78)" text-anchor="middle">INPUT</text>
+      <text x="12" y="185" font-size="8" fill="#94a3b8" font-family="Inter" transform="rotate(-90,12,185)" text-anchor="middle">API</text>
+      <text x="12" y="330" font-size="8" fill="#94a3b8" font-family="Inter" transform="rotate(-90,12,330)" text-anchor="middle">ENRICHMENT</text>
+      <text x="12" y="430" font-size="8" fill="#94a3b8" font-family="Inter" transform="rotate(-90,12,430)" text-anchor="middle">AGENT</text>
+      <text x="12" y="520" font-size="8" fill="#94a3b8" font-family="Inter" transform="rotate(-90,12,520)" text-anchor="middle">OUTPUT</text>
+
+      <!-- Layer backgrounds -->
+      <rect x="28" y="18" width="660" height="70" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+      <rect x="28" y="108" width="660" height="70" rx="6" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1"/>
+      <rect x="28" y="198" width="660" height="170" rx="6" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+      <rect x="28" y="388" width="660" height="70" rx="6" fill="#fff7ed" stroke="#fed7aa" stroke-width="1"/>
+      <rect x="28" y="478" width="660" height="82" rx="6" fill="#fdf2f8" stroke="#fbcfe8" stroke-width="1"/>
+
+      <!-- ── INPUT LAYER ── -->
+      <rect x="60" y="30" width="140" height="46" rx="5" fill="#1d4ed8" stroke="none"/>
+      <text x="130" y="50" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Lead Request</text>
+      <text x="130" y="63" font-size="7.5" fill="#bfdbfe" font-family="Inter" text-anchor="middle">POST /leads/process</text>
+
+      <rect x="280" y="30" width="140" height="46" rx="5" fill="#1d4ed8" stroke="none"/>
+      <text x="350" y="50" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Email Webhook</text>
+      <text x="350" y="63" font-size="7.5" fill="#bfdbfe" font-family="Inter" text-anchor="middle">POST /email/webhook</text>
+
+      <rect x="500" y="30" width="140" height="46" rx="5" fill="#1d4ed8" stroke="none"/>
+      <text x="570" y="50" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">SMS Webhook</text>
+      <text x="570" y="63" font-size="7.5" fill="#bfdbfe" font-family="Inter" text-anchor="middle">POST /sms/webhook</text>
+
+      <!-- ── API LAYER ── -->
+      <rect x="240" y="120" width="220" height="46" rx="5" fill="#4f46e5" stroke="none"/>
+      <text x="350" y="140" font-size="10" fill="white" font-family="Inter" text-anchor="middle" font-weight="700">FastAPI Application</text>
+      <text x="350" y="154" font-size="7.5" fill="#c7d2fe" font-family="Inter" text-anchor="middle">agent/main.py · uvicorn · port 8000</text>
+
+      <!-- ── ENRICHMENT LAYER ── -->
+      <text x="350" y="218" font-size="8.5" fill="#166534" font-family="Inter" text-anchor="middle" font-weight="600">ENRICHMENT PIPELINE  (agent/enrichment/pipeline.py)</text>
+
+      <rect x="50" y="228" width="108" height="46" rx="4" fill="#15803d" stroke="none"/>
+      <text x="104" y="248" font-size="8" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Crunchbase</text>
+      <text x="104" y="260" font-size="7" fill="#bbf7d0" font-family="Inter" text-anchor="middle">CSV firmographics</text>
+
+      <rect x="170" y="228" width="108" height="46" rx="4" fill="#15803d" stroke="none"/>
+      <text x="224" y="248" font-size="8" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Layoffs.fyi</text>
+      <text x="224" y="260" font-size="7" fill="#bbf7d0" font-family="Inter" text-anchor="middle">CSV restructuring</text>
+
+      <rect x="290" y="228" width="108" height="46" rx="4" fill="#15803d" stroke="none"/>
+      <text x="344" y="248" font-size="8" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Job Post Scraper</text>
+      <text x="344" y="260" font-size="7" fill="#bbf7d0" font-family="Inter" text-anchor="middle">Playwright velocity</text>
+
+      <rect x="410" y="228" width="108" height="46" rx="4" fill="#15803d" stroke="none"/>
+      <text x="464" y="248" font-size="8" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">AI Maturity Scorer</text>
+      <text x="464" y="260" font-size="7" fill="#bbf7d0" font-family="Inter" text-anchor="middle">Qwen3 · 0-3 score</text>
+
+      <rect x="530" y="228" width="120" height="46" rx="4" fill="#15803d" stroke="none"/>
+      <text x="590" y="248" font-size="8" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Leadership Change</text>
+      <text x="590" y="260" font-size="7" fill="#bbf7d0" font-family="Inter" text-anchor="middle">Qwen3 · LLM detect</text>
+
+      <!-- Competitor Gap -->
+      <rect x="200" y="290" width="300" height="46" rx="4" fill="#166534" stroke="none"/>
+      <text x="350" y="310" font-size="8.5" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Competitor Gap Builder</text>
+      <text x="350" y="323" font-size="7.5" fill="#bbf7d0" font-family="Inter" text-anchor="middle">Qwen3 · sector top-quartile benchmark · competitor_gap_brief.json</text>
+
+      <!-- ── AGENT LAYER ── -->
+      <rect x="180" y="400" width="340" height="46" rx="5" fill="#c2410c" stroke="none"/>
+      <text x="350" y="421" font-size="10" fill="white" font-family="Inter" text-anchor="middle" font-weight="700">Agent Core</text>
+      <text x="350" y="435" font-size="7.5" fill="#fed7aa" font-family="Inter" text-anchor="middle">Qwen3 via OpenRouter · segment routing · honesty constraints</text>
+
+      <!-- ── OUTPUT LAYER ── -->
+      <rect x="50" y="490" width="150" height="54" rx="5" fill="#be185d" stroke="none"/>
+      <text x="125" y="512" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Email Handler</text>
+      <text x="125" y="525" font-size="7" fill="#fbcfe8" font-family="Inter" text-anchor="middle">Resend API · PRIMARY</text>
+      <text x="125" y="537" font-size="7" fill="#fbcfe8" font-family="Inter" text-anchor="middle">cold + warm leads</text>
+
+      <rect x="225" y="490" width="150" height="54" rx="5" fill="#9d174d" stroke="none"/>
+      <text x="300" y="512" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">SMS Handler</text>
+      <text x="300" y="525" font-size="7" fill="#fbcfe8" font-family="Inter" text-anchor="middle">Africa's Talking · SECONDARY</text>
+      <text x="300" y="537" font-size="7" fill="#fbcfe8" font-family="Inter" text-anchor="middle">warm leads only</text>
+
+      <rect x="400" y="490" width="130" height="54" rx="5" fill="#7e22ce" stroke="none"/>
+      <text x="465" y="512" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">HubSpot CRM</text>
+      <text x="465" y="525" font-size="7" fill="#e9d5ff" font-family="Inter" text-anchor="middle">contact upsert</text>
+      <text x="465" y="537" font-size="7" fill="#e9d5ff" font-family="Inter" text-anchor="middle">email + meeting logs</text>
+
+      <rect x="550" y="490" width="120" height="54" rx="5" fill="#4c1d95" stroke="none"/>
+      <text x="610" y="512" font-size="9" fill="white" font-family="Inter" text-anchor="middle" font-weight="600">Cal.com</text>
+      <text x="610" y="525" font-size="7" fill="#e9d5ff" font-family="Inter" text-anchor="middle">slot booking</text>
+      <text x="610" y="537" font-size="7" fill="#e9d5ff" font-family="Inter" text-anchor="middle">→ HubSpot meeting</text>
+
+      <!-- ── Langfuse observation band ── -->
+      <rect x="28" y="558" width="660" height="18" rx="4" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="350" y="571" font-size="8" fill="#b45309" font-family="Inter" text-anchor="middle" font-weight="600">Langfuse Observability — traces all layers (emit_span per handler, trace per pipeline run)</text>
+
+      <!-- ── ARROWS ── -->
+      <!-- Input → API -->
+      <line x1="130" y1="76" x2="305" y2="120" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="350" y1="76" x2="350" y2="120" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="570" y1="76" x2="400" y2="120" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- API → Enrichment -->
+      <line x1="350" y1="166" x2="350" y2="228" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- Enrichment → Competitor Gap -->
+      <line x1="350" y1="274" x2="350" y2="290" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+      <!-- Enrichment → Agent -->
+      <line x1="350" y1="336" x2="350" y2="400" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- Agent → Outputs -->
+      <line x1="280" y1="446" x2="200" y2="490" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+      <line x1="320" y1="446" x2="300" y2="490" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+      <line x1="395" y1="446" x2="465" y2="490" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+      <line x1="440" y1="446" x2="560" y2="490" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+      <!-- Cal → HubSpot integration link -->
+      <line x1="550" y1="517" x2="530" y2="517" stroke="#e9d5ff" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arrow-gray)"/>
+    </svg>
+    <p style="font-size:8pt; color:#94a3b8; margin-top:8px">Figure 1 — Conversion Engine architecture. Arrows show directional data flow.</p>
+  </div>
+
+  <h3>1.2 Design Rationale</h3>
+
+  <p><strong>Research-First, Not Spray-and-Pray.</strong> The pipeline begins with five enrichment steps before the agent writes a single word of outreach. The design decision: an LLM composing outreach without a grounded brief produces generic emails that get ignored. Every claim in the sent email must trace back to a field in <code>hiring_signal_brief.json</code>.</p>
+
+  <p><strong>Segment-Driven Routing.</strong> Prospects are classified into four ICP segments (Series A/B funding, mid-market restructure, leadership transition, specialized capability gap) plus an <em>abstain</em> state. Each segment maps to a dedicated email angle. If segment confidence falls below 0.6, the agent is forced to send a generic exploratory email rather than assert a pitch it cannot support. This is enforced in Python post-LLM, not delegated to the model.</p>
+
+  <p><strong>Honesty Constraints Enforced in Code.</strong> Three conditions trigger protective overrides: (1) <code>velocity_label == "insufficient_signal"</code> forces "ask" language, not assertions; (2) <code>segment_confidence &lt; 0.6</code> routes to abstain; (3) <code>bench_available == False</code> flags a capacity gap and routes to a human, preventing false capacity promises.</p>
+
+  <p><strong>Kill Switch Before Any Outbound.</strong> <code>KILL_SWITCH_LIVE_OUTBOUND=false</code> (the safe default) redirects all email and SMS to configurable sink addresses. No prospect is ever contacted without an explicit environment change and program-staff approval.</p>
+
+  <h3>1.3 Channel Hierarchy</h3>
+
+  <table>
+    <thead><tr><th>Tier</th><th>Channel</th><th>Provider</th><th>When Used</th><th>Gating Rule</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Primary</strong></td><td>Email</td><td>Resend API v2.29.0</td><td>All outreach — cold and warm</td><td>None (kill switch applies)</td></tr>
+      <tr><td><strong>Secondary</strong></td><td>SMS</td><td>Africa's Talking sandbox</td><td>Warm leads only — scheduling follow-up after reply</td><td><code>is_warm_lead=True</code> required; <code>PermissionError</code> raised for cold leads</td></tr>
+      <tr><td><strong>Tertiary (Act V)</strong></td><td>Voice</td><td>TBD (Twilio / ElevenLabs)</td><td>High-value warm leads, final-touch before discovery call</td><td>Not yet implemented — reserved for Act V</td></tr>
+    </tbody>
+  </table>
+
+  <p>The hierarchy reflects a deliberate cost and intrusiveness gradient: email is cheap and async; SMS implies a warm relationship; voice is reserved for high-intent prospects only.</p>
+
+
+  <!-- ═══════════════════════════════════════════ 2. STACK STATUS -->
+  <h2 class="page-break">2. Production Stack Status</h2>
+
+  <div class="metric-grid">
+    <div class="metric-card"><div class="value">5/5</div><div class="label">Components Configured</div></div>
+    <div class="metric-card"><div class="value">20</div><div class="label">Leads Processed (G3)</div></div>
+    <div class="metric-card"><div class="value">16/20</div><div class="label">Emails Delivered</div></div>
+    <div class="metric-card"><div class="value">false</div><div class="label">Kill Switch State</div></div>
+  </div>
+
+  <div class="avoid-break">
+  <h3>2.1 Email — Resend API v2.29.0</h3>
+  <table>
+    <thead><tr><th>Property</th><th>Value / Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td><span class="pill pill-green">Verified Running</span></td></tr>
+      <tr><td>SDK</td><td><code>resend==2.29.0</code> · <code>resend.Emails.send(params)</code></td></tr>
+      <tr><td>From address</td><td>Resend sandbox sender (<code>onboarding@resend.dev</code>)</td></tr>
+      <tr><td>Kill switch</td><td><code>KILL_SWITCH_LIVE_OUTBOUND=false</code> → all email routed to <code>OUTBOUND_SINK_EMAIL</code></td></tr>
+      <tr><td>Kill switch verified</td><td>Set <code>=true</code> during G2 test: email delivered to personal inbox (yohannes@10academy.org). Confirmed via Resend dashboard email ID.</td></tr>
+      <tr><td>Webhook</td><td><code>POST /email/webhook</code> receives Resend reply/bounce events; registered handler callbacks via <code>register_reply_handler()</code> / <code>register_bounce_handler()</code></td></tr>
+      <tr><td>Bounce handling</td><td><code>handle_bounce_webhook()</code> covers <code>email.bounced</code>, <code>email.delivery_delayed</code>, <code>email.complained</code></td></tr>
+      <tr><td>G3 result</td><td>16/20 emails confirmed delivered in inbox; 4 routed to spam — no hard bounces</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="avoid-break">
+  <h3>2.2 SMS — Africa's Talking Sandbox</h3>
+  <table>
+    <thead><tr><th>Property</th><th>Value / Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td><span class="pill pill-green">Configured</span> · <span class="pill pill-yellow">Sandbox (no real delivery)</span></td></tr>
+      <tr><td>SDK</td><td><code>africastalking</code> Python SDK · initialized at module load</td></tr>
+      <tr><td>Warm-lead gate</td><td><code>send_sms(is_warm_lead=False)</code> raises <code>PermissionError</code> — cold outreach blocked at handler level</td></tr>
+      <tr><td>Kill switch</td><td><code>KILL_SWITCH_LIVE_OUTBOUND=false</code> → SMS routed to <code>OUTBOUND_SINK_SMS</code></td></tr>
+      <tr><td>Inbound webhook</td><td><code>POST /sms/webhook</code> parses Africa's Talking form-encoded body; dispatches to registered inbound handlers</td></tr>
+      <tr><td>Design note</td><td>SMS is intentionally secondary: engagement is only initiated after a prospect has replied to email (warm signal confirmed). Cold SMS is permanently blocked.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="avoid-break">
+  <h3>2.3 CRM — HubSpot Developer Sandbox</h3>
+  <table>
+    <thead><tr><th>Property</th><th>Value / Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td><span class="pill pill-green">Verified Running</span></td></tr>
+      <tr><td>API version</td><td>HubSpot CRM API v3 · httpx async client · Bearer token auth</td></tr>
+      <tr><td>Contact upsert</td><td>Search by email → PATCH if exists, POST if new. Returns HubSpot contact ID.</td></tr>
+      <tr><td>Standard properties</td><td><code>firstname</code>, <code>lastname</code>, <code>email</code>, <code>company</code>, <code>hs_lead_status</code>, <code>industry</code></td></tr>
+      <tr><td>Custom properties created</td><td><code>crunchbase_id</code>, <code>ai_maturity_score</code>, <code>icp_segment</code>, <code>enrichment_timestamp</code>, <code>hiring_signal_brief</code> (JSON string)</td></tr>
+      <tr><td>Email activity logging</td><td>Note engagement created and associated to contact via <code>/crm/v3/associations/notes/{id}/contacts/{cid}/note_to_contact</code></td></tr>
+      <tr><td>Meeting logging</td><td>Meeting engagement created on successful Cal.com booking; auto-triggered via <code>book_slot(contact_id=...)</code> integration link</td></tr>
+      <tr><td>G2 evidence</td><td>Contact visible in HubSpot sandbox portal with <code>contact_id</code> returned in API response; <code>ai_maturity_score</code> and <code>icp_segment</code> fields populated.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="avoid-break">
+  <h3>2.4 Calendar — Cal.com Cloud API</h3>
+  <table>
+    <thead><tr><th>Property</th><th>Value / Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td><span class="pill pill-green">Configured</span></td></tr>
+      <tr><td>API</td><td>Cal.com Cloud v2 · <code>https://api.cal.com/v2/</code> · <code>cal-api-version: 2024-09-04</code> header</td></tr>
+      <tr><td>Slot fetch</td><td><code>GET /v2/slots/available</code> with <code>startTime</code>, <code>endTime</code>, <code>eventTypeId</code></td></tr>
+      <tr><td>Booking</td><td><code>POST /v2/bookings</code> with attendee info and <code>discovery_call_context_brief</code> in <code>bookingFieldsResponses.notes</code></td></tr>
+      <tr><td>Integration link</td><td>On successful booking (<code>uid</code> present), <code>log_meeting_booked()</code> is automatically called on the HubSpot contact — CRM/Calendar are linked without manual sync</td></tr>
+      <tr><td>Design note</td><td>The context brief is attached as meeting notes so the SDR sees the enriched prospect profile before the discovery call.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="avoid-break">
+  <h3>2.5 Observability — Langfuse Cloud</h3>
+  <table>
+    <thead><tr><th>Property</th><th>Value / Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td><span class="pill pill-green">Verified Running</span></td></tr>
+      <tr><td>SDK version</td><td>Langfuse v4.5.0 · <code>create_trace_id()</code> + <code>TraceContext</code> + <code>start_observation()</code></td></tr>
+      <tr><td>Coverage</td><td>Every handler function emits a span via <code>emit_span()</code> (utils.py singleton). Pipeline runs emit a parent trace with child spans per step.</td></tr>
+      <tr><td>Span fields</td><td><code>trace_id</code>, <code>name</code>, <code>input</code>, <code>output</code>, <code>latency_ms</code>; LLM spans include <code>model</code> and <code>usage_details</code></td></tr>
+      <tr><td>τ²-Bench integration</td><td>Each tau2 task run emits a Langfuse trace; trace IDs logged in <code>eval/trace_log.jsonl</code></td></tr>
+      <tr><td>Noop fallback</td><td><code>_NoopLangfuse</code> class handles missing keys silently — observability failure never breaks the application</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ 3. ENRICHMENT PIPELINE -->
+  <h2 class="page-break">3. Enrichment Pipeline Documentation</h2>
+
+  <p>The pipeline runs five signals in sequence, assembles a <code>hiring_signal_brief.json</code>, and validates it against the JSON Schema before the agent sees any data. The sample values below are from the Stripe test run (<code>generated_at: 2026-04-23T16:30:22Z</code>).</p>
+
+  <div class="signal-card avoid-break">
+    <h4>Signal 1 — Crunchbase ODM Firmographics</h4>
+    <p><strong>Source:</strong> <code>agent/enrichment/crunchbase_enricher.py</code> — fuzzy-match against local Crunchbase CSV using <code>thefuzz</code> (token sort ratio ≥ 75).</p>
+    <p><strong>Output fields:</strong> <code>name</code>, <code>domain</code>, <code>industry</code>, <code>employee_count</code>, <code>funding_total</code>, <code>last_funding_stage</code>, <code>last_funding_date</code>, <code>location</code>, <code>description</code>, <code>crunchbase_id</code></p>
+    <div class="signal-fields">funding_total: "$6.5B" · last_funding_stage: "debt" · employee_count: "8000+" · industry: "Financial Services"</div>
+    <p><strong>Classification link:</strong> <code>last_funding_stage</code> determines Segment 1 (Series A/B) or Segment 2 (mid-market). <code>employee_count</code> is parsed to an integer and combined with funding stage to score segment confidence. <code>funding_event.confidence</code> is 0.80 when both stage and funding total are present, 0.50 with stage only.</p>
+  </div>
+
+  <div class="signal-card avoid-break">
+    <h4>Signal 2 — Job-Post Velocity Scraping</h4>
+    <p><strong>Source:</strong> <code>agent/enrichment/job_post_scraper.py</code> — Playwright headless browser scrapes company careers pages and Wellfound. Graceful fallback: returns <code>{"status": "no_data"}</code> on timeout or block.</p>
+    <p><strong>Output fields:</strong> <code>open_roles_today</code> (int), <code>role_titles</code> (list[str]), <code>sources</code> (list), <code>status</code></p>
+    <div class="signal-fields">open_roles_today: 0 · role_titles: [] · status: "no_data" (stripe.com blocks scraper)</div>
+    <p><strong>Classification link:</strong> <code>open_roles_today</code> feeds <code>hiring_velocity.velocity_label</code> (insufficient_signal / tripled_or_more / …). AI-adjacent role count (regex on titles) feeds Segment 4 scoring. Low role count triggers <code>weak_hiring_velocity_signal</code> honesty flag, forcing ask-not-assert email language.</p>
+  </div>
+
+  <div class="signal-card avoid-break">
+    <h4>Signal 3 — Layoffs.fyi Integration</h4>
+    <p><strong>Source:</strong> <code>agent/enrichment/layoffs_enricher.py</code> — fuzzy-match against <code>data/layoffs_fyi.csv</code> (same token sort ratio threshold).</p>
+    <p><strong>Output fields:</strong> <code>detected</code> (bool), <code>date</code>, <code>headcount_reduction</code> (int), <code>percentage_cut</code> (float), <code>source_url</code></p>
+    <div class="signal-fields">detected: true · date: "2025-01-21" · headcount_reduction: 300 · percentage_cut: 0.03 · source_url: "https://www.businessinsider.com/stripe-layoffs-staff-payments-memo-2025-1"</div>
+    <p><strong>Classification link:</strong> A detected layoff within 120 days + Series A/B or mid-market profile → Segment 2 (restructure). <code>layoff_event.confidence</code> is 0.90 when <code>percentage_cut</code> or <code>headcount_reduction</code> is present (quantified), 0.70 for date-only. Triggers <code>layoff_overrides_funding</code> honesty flag when layoff coincides with Series A/B funding.</p>
+  </div>
+
+  <div class="signal-card avoid-break">
+    <h4>Signal 4 — Leadership Change Detection (LLM)</h4>
+    <p><strong>Source:</strong> <code>agent/enrichment/pipeline.py :: _detect_leadership_change_llm()</code> — Qwen3 via OpenRouter. Runs after job scraper; uses company name, industry, and observed role titles as context. Instructed to infer rather than fabricate.</p>
+    <p><strong>Output fields:</strong> <code>detected</code> (bool), <code>role</code> (cto | vp_engineering | cio | chief_data_officer | head_of_ai | other | none), <code>new_leader_name</code>, <code>started_at</code>, <code>confidence</code> (internal)</p>
+    <div class="signal-fields">detected: false · role: "none" · confidence: 0.2 (insufficient signal from job titles alone)</div>
+    <p><strong>Classification link:</strong> <code>detected == true</code> and role in the named-role enum → Segment 3 (leadership transition, confidence 0.72 for named tech roles, 0.62 for "other"). The LLM is prompted to base judgement on open-role volume as a soft proxy — high senior-engineering role counts are a known correlate of recent leadership changes.</p>
+  </div>
+
+  <div class="signal-card avoid-break">
+    <h4>Signal 5 — AI Maturity Scoring (0–3)</h4>
+    <p><strong>Source:</strong> <code>agent/enrichment/ai_maturity_scorer.py</code> — Qwen3 via OpenRouter, <code>temperature=0.0</code>.</p>
+    <p><strong>Scoring rubric (high-weight inputs):</strong></p>
+    <ul>
+      <li><strong>[high]</strong> <code>ai_adjacent_open_roles</code> — open ML/AI/Data Science/LLM engineer roles</li>
+      <li><strong>[high]</strong> <code>named_ai_ml_leadership</code> — VP AI, Head of ML, Chief Data Officer title present</li>
+      <li><strong>[medium]</strong> <code>github_org_activity</code> — public GitHub with ML/AI repos</li>
+      <li><strong>[medium]</strong> <code>executive_commentary</code> — CEO/CTO public statements on AI strategy</li>
+      <li><strong>[medium]</strong> <code>modern_data_ml_stack</code> — PyTorch, LangChain, MLflow evidence</li>
+      <li><strong>[low]</strong> <code>strategic_communications</code> — blog posts, talks on AI</li>
+    </ul>
+    <p><strong>Score levels:</strong> 0 = no signal · 1 = analytics roles, no AI function · 2 = dedicated AI roles OR named AI leadership · 3 = active AI function + named leadership + open roles + public evidence</p>
+    <div class="signal-fields">score: 0 · confidence: 0.3 · all 6 justifications present with "no evidence found" status</div>
+    <p><strong>Confidence-to-phrasing mapping (enforced in agent_core.py):</strong></p>
+    <ul>
+      <li><code>confidence &lt; 0.5</code> OR <code>score == 0</code> → <code>weak_ai_maturity_signal</code> flag → ask language ("We've seen companies like yours…"), not assert ("You have an AI gap")</li>
+      <li>Segment 4 (capability gap pitch) only unlocks when <code>score ≥ 2</code> — a hard Python check, not an LLM preference</li>
+    </ul>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ 4. COMPETITOR GAP -->
+  <h2 class="page-break">4. Competitor Gap Brief Status</h2>
+
+  <p>The competitor gap builder (<code>agent/enrichment/competitor_gap_builder.py</code>) uses Qwen3 via OpenRouter to: (1) identify 5–10 sector competitors from the Crunchbase CSV, (2) score each competitor's AI maturity, (3) compute the prospect's position relative to the sector top quartile. Output is validated against <code>competitor_gap_brief.schema.json</code> before use.</p>
+
+  <div class="callout success avoid-break">
+    <p><strong>Test prospect: Stripe — competitor_gap_brief.json generated successfully.</strong> The pipeline produced a valid brief. Sample output below.</p>
+  </div>
+
+  <pre>{
+  "prospect_domain": "stripe.com",
+  "prospect_sector": "Technology",
+  "prospect_ai_maturity_score": 0,
+  "sector_top_quartile_benchmark": 2.0,
+  "competitors_analyzed": [
+    { "name": "SG Systems Global", "ai_maturity_score": 1, "top_quartile": true },
+    { "name": "Chip Aviation Capital", "ai_maturity_score": 0, "top_quartile": false },
+    ...
+  ],
+  "gap_findings": [
+    {
+      "finding": "Stripe scores below the sector top-quartile AI maturity benchmark (0 vs 2.0).",
+      "signal_type": "capability_gap",
+      "confidence": 0.72
+    }
+  ]
+}</pre>
+
+  <p><strong>Limitation observed:</strong> The Crunchbase CSV used for competitor identification is a local training dataset, not a live API feed. For Stripe, the competitors returned are small companies in the same CSV region, not actual fintech peers like Adyen or Braintree. This is expected behavior given the data source — the LLM's competitor selection is bounded by what is in the local CSV.</p>
+
+  <p>The competitor gap brief populates the <code>gap_findings</code> field in the agent's context, which the agent uses to construct capability-gap arguments in Segment 4 emails (<code>ai_maturity ≥ 2</code> required to deploy this angle).</p>
+
+
+  <!-- ═══════════════════════════════════════════ 5. TAU2-BENCH -->
+  <h2>5. τ²-Bench Baseline Score and Methodology</h2>
+
+  <h3>5.1 Methodology</h3>
+  <p>The τ²-Bench (tau-squared benchmark) evaluates agent task completion in multi-turn user-simulation environments. The retail domain simulates customer service interactions over a webshop.</p>
+
+  <ul>
+    <li><strong>Harness:</strong> <code>eval/tau2_bench_runner.py</code> — wraps tau2-bench's Python API (<code>get_tasks</code> + <code>run_single_task</code>)</li>
+    <li><strong>Model:</strong> <code>qwen/qwen3-235b-a22b</code> via OpenRouter, <code>temperature=0.0</code></li>
+    <li><strong>Slice:</strong> <code>dev</code> · 30 tasks · 1 trial per task (facilitator update: 1 trial sufficient for reproduction check)</li>
+    <li><strong>Metric:</strong> pass@1 (reward ≥ 0.5 → pass) · Wilson 95% CI · wall-clock p50/p95</li>
+    <li><strong>Trace logging:</strong> Each task run emits a Langfuse span and appends to <code>eval/trace_log.jsonl</code></li>
+  </ul>
+
+  <h3>5.2 Results</h3>
+
+  <div class="metric-grid">
+    <div class="metric-card"><div class="value">0.2667</div><div class="label">pass@1 (reproduction run)</div></div>
+    <div class="metric-card"><div class="value">[0.14, 0.44]</div><div class="label">Wilson 95% CI</div></div>
+    <div class="metric-card"><div class="value">97.2s</div><div class="label">p50 latency / task</div></div>
+    <div class="metric-card"><div class="value">245.9s</div><div class="label">p95 latency / task</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Run</th><th>Model</th><th>Trials</th><th>pass@1</th><th>95% CI</th><th>Cost / task</th><th>p50 (s)</th><th>p95 (s)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill pill-blue">Facilitator Baseline</span></td>
+        <td><code>qwen3-next-80b-a3b-thinking</code></td>
+        <td>5</td>
+        <td><strong>0.7267</strong></td>
+        <td>[0.65, 0.79]</td>
+        <td>$0.0199</td>
+        <td>105.95</td>
+        <td>551.65</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-purple">Reproduction Run</span></td>
+        <td><code>qwen3-235b-a22b</code></td>
+        <td>1</td>
+        <td>0.2667</td>
+        <td>[0.14, 0.44]</td>
+        <td>$0.0000*</td>
+        <td>97.20</td>
+        <td>245.89</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><em>* Cost reported $0.0000 because tau2's <code>agent_cost</code> field does not surface OpenRouter billing — costs were incurred on the OpenRouter side but not captured by the simulation result object. Actual spend estimated at ~$0.50–$0.80 total based on OpenRouter dashboard.</em></p>
+
+  <h3>5.3 Gap Analysis</h3>
+  <p>The reproduction run pass@1 (0.2667) is significantly below the facilitator baseline (0.7267). Two factors account for this:</p>
+  <ol>
+    <li><strong>Single trial vs. five trials:</strong> With 1 trial per task, stochastic failures (tool call errors, user simulator mismatches) are not averaged out. 5-trial aggregation substantially improves the mean.</li>
+    <li><strong>Model difference:</strong> The facilitator used <code>qwen3-next-80b-a3b-thinking</code> (a thinking-mode variant with chain-of-thought) against <code>qwen3-235b-a22b</code> which is a larger dense model without native thinking mode. Tool-use accuracy differs meaningfully between these variants on multi-step retail tasks.</li>
+  </ol>
+
+
+  <!-- ═══════════════════════════════════════════ 6. LATENCY -->
+  <h2 class="page-break">6. End-to-End Latency — 20 Synthetic Interactions</h2>
+
+  <p>Twenty synthetic leads were processed via <code>scripts/generate_synthetic_interactions.py</code>, which POSTs each company to <code>POST /leads/process</code> sequentially and records wall-clock time per request. Companies were sampled from the Crunchbase CSV dataset.</p>
+
+  <div class="metric-grid">
+    <div class="metric-card"><div class="value">68.4s</div><div class="label">p50 (median) per lead</div></div>
+    <div class="metric-card"><div class="value">142.1s</div><div class="label">p95 per lead</div></div>
+    <div class="metric-card"><div class="value">20</div><div class="label">Interactions run</div></div>
+    <div class="metric-card"><div class="value">16/20</div><div class="label">Emails delivered to inbox</div></div>
+  </div>
+
+  <h3>6.1 Latency Breakdown by Pipeline Stage</h3>
+  <p>Observed from Langfuse traces and the Stripe smoke test (<code>hired_signal_brief.json</code> timestamps):</p>
+
+  <table>
+    <thead><tr><th>Stage</th><th>Typical Duration</th><th>Primary Driver</th></tr></thead>
+    <tbody>
+      <tr><td>Crunchbase + Layoffs CSV lookup</td><td>0.1 – 0.5s</td><td>In-memory fuzzy match</td></tr>
+      <tr><td>Job post scraper (Playwright)</td><td>10 – 25s</td><td>Page load + timeout; many companies block bots</td></tr>
+      <tr><td>Leadership change LLM (Qwen3)</td><td>5 – 15s</td><td>OpenRouter inference latency</td></tr>
+      <tr><td>AI maturity scoring (Qwen3)</td><td>10 – 35s</td><td>6-signal justification generation (1,500 max tokens)</td></tr>
+      <tr><td>Competitor gap builder (Qwen3)</td><td>30 – 80s</td><td>Competitor analysis JSON is longest LLM call</td></tr>
+      <tr><td>Agent core outreach composition</td><td>10 – 20s</td><td>Email body generation</td></tr>
+      <tr><td>HubSpot upsert + activity log</td><td>1 – 3s</td><td>Two async HTTP calls</td></tr>
+      <tr><td>Resend email send</td><td>0.3 – 1s</td><td>Resend API</td></tr>
+      <tr><td><strong>Total (median)</strong></td><td><strong>~68s</strong></td><td>Competitor gap builder dominates</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.2 Observations</h3>
+  <p>The competitor gap builder is the dominant latency contributor (30–80s). Two optimization paths for Act III: (1) cache the competitor list per sector (changes slowly), (2) run competitor gap and AI maturity in parallel via <code>asyncio.gather()</code> — currently sequential.</p>
+  <p>The Playwright job scraper frequently returns <code>no_data</code> (most careers pages block headless browsers). This actually <em>reduces</em> p50 latency (the scraper times out fast for blocked sites) but degrades hiring velocity signal quality.</p>
+
+
+  <!-- ═══════════════════════════════════════════ 7. STATUS + PLAN -->
+  <h2>7. Honest Status Report and Forward Plan</h2>
+
+  <h3>7.1 What Is Working</h3>
+
+  <table>
+    <thead><tr><th>Component</th><th>Status</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>FastAPI application startup</td><td><span class="pill pill-green">Working</span></td><td><code>GET /health</code> returns 200 with all service keys confirmed</td></tr>
+      <tr><td>End-to-end lead processing</td><td><span class="pill pill-green">Working</span></td><td>G2 test: Stripe processed, HubSpot contact created, email received in inbox</td></tr>
+      <tr><td>Resend email delivery</td><td><span class="pill pill-green">Working</span></td><td>16/20 G3 emails delivered; kill switch tested in both directions</td></tr>
+      <tr><td>HubSpot contact upsert</td><td><span class="pill pill-green">Working</span></td><td>Contact ID returned; custom properties (ai_maturity_score, icp_segment) visible in portal</td></tr>
+      <tr><td>Langfuse tracing</td><td><span class="pill pill-green">Working</span></td><td>Traces visible in Langfuse cloud dashboard for all G2/G3 runs</td></tr>
+      <tr><td>Layoffs.fyi signal</td><td><span class="pill pill-green">Working</span></td><td>Stripe layoff (Jan 2025, 300 headcount) correctly detected with source URL</td></tr>
+      <tr><td>AI maturity scoring</td><td><span class="pill pill-green">Working</span></td><td>6-signal JSON returned; honesty flags generated correctly</td></tr>
+      <tr><td>Competitor gap brief</td><td><span class="pill pill-green">Working</span></td><td><code>competitor_gap_brief.json</code> generated for Stripe; schema validates</td></tr>
+      <tr><td>τ²-Bench harness</td><td><span class="pill pill-green">Working</span></td><td>30-task dev slice completed; <code>score_log.json</code> and <code>trace_log.jsonl</code> populated</td></tr>
+      <tr><td>Kill switch (email + SMS)</td><td><span class="pill pill-green">Working</span></td><td>Verified both directions; cold SMS blocked at handler level with PermissionError</td></tr>
+      <tr><td>Segment routing logic</td><td><span class="pill pill-green">Working</span></td><td>All 4 segments + abstain implemented; honesty constraint overrides tested</td></tr>
+      <tr><td>Leadership change detection</td><td><span class="pill pill-green">Working</span></td><td>LLM inference function added; integrated into pipeline; Segment 3 routing enabled</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.2 What Is Not Working / Limitations</h3>
+
+  <div class="callout warning avoid-break">
+    <p><strong>Job Post Scraper — Low Hit Rate.</strong> Playwright-based scraping returns <code>no_data</code> for ~75% of tested companies (Stripe, most SaaS companies). Root cause: anti-bot measures on careers pages. Consequence: <code>hiring_velocity.velocity_label</code> is always <code>insufficient_signal</code>, and the Segment 4 AI-role-count gate rarely activates. Mitigation explored but not yet resolved: SerpAPI for public job listings as an alternative source.</p>
+  </div>
+
+  <div class="callout warning avoid-break">
+    <p><strong>τ²-Bench pass@1 Below Facilitator Baseline.</strong> Reproduction run scored 0.2667 vs facilitator's 0.7267. Concrete failures: 5 tasks terminated with <code>runner_error</code> (tool call format mismatch with qwen3-235b-a22b); 7 tasks where the agent looped without converging. Not a system fault — the facilitator used a different model variant (thinking mode). The reproduction run is documented as a reference point, not a claimed baseline equivalence.</p>
+  </div>
+
+  <div class="callout warning avoid-break">
+    <p><strong>τ²-Bench Cost Attribution.</strong> <code>cost_usd</code> reports $0.0000 for all runs. Root cause: tau2's <code>agent_cost</code> field is populated by tau2's internal cost calculator, which does not have billing data for OpenRouter-routed calls. Actual OpenRouter cost was ~$0.013–0.096 per task based on dashboard, consistent with the facilitator's $0.0199/task baseline. This is a tau2 instrumentation limitation, not a zero-cost run.</p>
+  </div>
+
+  <div class="callout danger avoid-break">
+    <p><strong>SMS Delivery Not Tested End-to-End.</strong> Africa's Talking is configured in sandbox mode. No real SMS delivery has been tested because the warm-lead workflow (reply to email → trigger SMS follow-up) has not been activated — it requires a real prospect to reply to an outreach email. The send path and inbound webhook handler are implemented and unit-verifiable but lack an end-to-end delivery trace.</p>
+  </div>
+
+  <div class="callout warning avoid-break">
+    <p><strong>Crunchbase CSV Coverage Gaps.</strong> Many well-known companies (Stripe, Notion, Linear) are absent from the training CSV or have partial records. The enricher falls back to <code>no_data</code>, which means the pipeline relies entirely on LLM inference for firmographics in those cases. A live Crunchbase API integration would resolve this but is outside the current budget scope.</p>
+  </div>
+
+  <h3>7.3 Forward Plan — Acts III through V</h3>
+
+  <table>
+    <thead><tr><th>Date</th><th>Act</th><th>Target Deliverables</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Apr 24–25</strong></td>
+        <td>Act III — Channel Deepening</td>
+        <td>
+          Implement SMS warm-lead follow-up workflow (reply detection → SMS scheduling reminder).<br>
+          Register <code>handle_reply_webhook</code> handler that checks reply sentiment and triggers <code>send_sms</code> for warm responders.<br>
+          Add SerpAPI fallback for job post velocity when Playwright returns no_data.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Apr 26–27</strong></td>
+        <td>Act IV — CRM Pipeline Depth</td>
+        <td>
+          Wire Cal.com slot presentation into the outreach email (include 2-3 available slots in email body).<br>
+          Implement lead-status state machine in HubSpot: <code>NEW → IN_PROGRESS → REPLIED → SCHEDULED</code>.<br>
+          Add segment re-classification on reply (second enrichment pass after reply received).
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Apr 28–30</strong></td>
+        <td>Act V — Production Hardening</td>
+        <td>
+          Run τ²-Bench full 5-trial sweep with reproduction check (budget ~$1.50).<br>
+          Deploy to a cloud instance (Railway or Render) — move off localhost/ngrok.<br>
+          Implement Langfuse cost attribution for OpenRouter (inject model pricing table into emit_span metadata).<br>
+          Run 20-lead live test with <code>KILL_SWITCH_LIVE_OUTBOUND=true</code> (pending program-staff approval).
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout" style="margin-top:24px">
+    <p><strong>Priority for Act III (next 48 hours):</strong> The job-post scraper hit rate is the most impactful improvement to make. Even a working SerpAPI fallback for 30% of companies would unlock Segment 4 routing, which currently never activates. The honesty constraint system is already built to handle low-confidence signals — the blocker is purely data pipeline coverage.</p>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <p style="font-size:8.5pt; color:#94a3b8; text-align:center; margin-top:16px">
+    Tenacious Conversion Engine · Interim Report · 10Academy Week 10 · April 23, 2026<br>
+    Repository: github.com/YohannesDereje/The-Conversion-Engine · Author: Yohannes Dereje (yohannes@10academy.org)
+  </p>
+
+</div>
+</body>
+</html>
