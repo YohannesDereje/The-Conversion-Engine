@@ -3,6 +3,8 @@ Cal.com handler (F4) — Cal.com Cloud v2 API (https://api.cal.com/v2/).
 
 get_available_slots: returns available booking slots for the next N days.
 book_slot: creates a booking with attendee info and discovery call context notes.
+          When contact_id is provided, automatically triggers a HubSpot
+          meeting record update (integration link requirement).
 """
 import time
 from datetime import datetime, timedelta, timezone
@@ -29,8 +31,7 @@ async def get_available_slots(days_ahead: int = 7) -> list[dict]:
     Fetch available calendar slots for the next `days_ahead` days.
 
     Returns:
-        List of slot dicts, each with {time, eventTypeId}.
-        Returns [] on any API error.
+        List of slot dicts {time, date, eventTypeId}. Returns [] on any API error.
     """
     t0 = time.monotonic()
     now = datetime.now(timezone.utc)
@@ -50,18 +51,14 @@ async def get_available_slots(days_ahead: int = 7) -> list[dict]:
                 },
             )
             if r.status_code == 200:
-                data = r.json().get("data", {})
-                # data.slots is a dict keyed by date: {"2024-01-15": [{"time": ...}]}
-                slots_by_date = data.get("slots", {})
+                slots_by_date = r.json().get("data", {}).get("slots", {})
                 for date_key, day_slots in slots_by_date.items():
                     for slot in day_slots:
-                        slots.append(
-                            {
-                                "time": slot.get("time", ""),
-                                "date": date_key,
-                                "eventTypeId": CALCOM_EVENT_TYPE_ID,
-                            }
-                        )
+                        slots.append({
+                            "time": slot.get("time", ""),
+                            "date": date_key,
+                            "eventTypeId": CALCOM_EVENT_TYPE_ID,
+                        })
     except Exception:
         pass
 
@@ -82,6 +79,7 @@ async def book_slot(
     attendee_name: str,
     discovery_call_context_brief: str,
     trace_id: str = "",
+    contact_id: str = "",
 ) -> dict:
     """
     Book a Cal.com slot.
@@ -89,12 +87,16 @@ async def book_slot(
     Attaches `discovery_call_context_brief` as notes on the booking so the SDR
     can see the prospect context before the call.
 
+    When `contact_id` is provided, a completed booking automatically triggers
+    a HubSpot meeting record update (CRM/Calendar integration link).
+
     Args:
-        slot_datetime: ISO 8601 string, e.g. "2024-01-15T09:00:00Z"
-        attendee_email: prospect's email
-        attendee_name: prospect's full name
+        slot_datetime:                ISO 8601 e.g. "2024-01-15T09:00:00Z"
+        attendee_email:               prospect's email
+        attendee_name:                prospect's full name
         discovery_call_context_brief: context summary string (from agent output)
-        trace_id: Langfuse trace ID for span emission
+        trace_id:                     Langfuse trace ID
+        contact_id:                   HubSpot contact ID — triggers HubSpot update if set
 
     Returns:
         {uid, status, start_time, attendee_email, meeting_url} or {status: "error", ...}
@@ -127,11 +129,14 @@ async def book_slot(
             if r.status_code in (200, 201):
                 booking = body.get("data", body)
                 result = {
-                    "uid": booking.get("uid", ""),
-                    "status": booking.get("status", "accepted"),
-                    "start_time": booking.get("start", slot_datetime),
+                    "uid":            booking.get("uid", ""),
+                    "status":         booking.get("status", "accepted"),
+                    "start_time":     booking.get("start", slot_datetime),
+                    "end_time":       booking.get("end", slot_datetime),
                     "attendee_email": attendee_email,
-                    "meeting_url": booking.get("meetingUrl", ""),
+                    "meeting_url":    booking.get("meetingUrl", ""),
+                    "title":          booking.get("title", "Discovery Call"),
+                    "notes":          discovery_call_context_brief,
                 }
             else:
                 result["error_detail"] = body.get("message", str(r.status_code))
@@ -145,10 +150,22 @@ async def book_slot(
         input={
             "slot_datetime": slot_datetime,
             "attendee_email": attendee_email,
-            "attendee_name": attendee_name,
             "eventTypeId": CALCOM_EVENT_TYPE_ID,
         },
         output=result,
         latency_ms=latency_ms,
     )
+
+    # ── Integration link: successful booking → HubSpot meeting record ─────────
+    if result.get("uid") and contact_id:
+        try:
+            from agent.hubspot_handler import log_meeting_booked
+            await log_meeting_booked(
+                contact_id=contact_id,
+                cal_event_data=result,
+                trace_id=trace_id,
+            )
+        except Exception:
+            pass  # HubSpot update failure must not fail the booking confirmation
+
     return result

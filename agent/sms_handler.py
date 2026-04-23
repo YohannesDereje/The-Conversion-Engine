@@ -1,9 +1,13 @@
 """
 SMS handler (F2) — Africa's Talking sandbox API.
 
-send_sms: sends via Africa's Talking; routes to sink when kill switch is off.
-handle_inbound_webhook: parses Africa's Talking inbound SMS webhook payload.
+SMS is a warm-lead-only channel. Cold outreach is blocked at the handler level.
+
+send_sms             : sends via Africa's Talking (warm leads only, kill-switch routed).
+handle_inbound_webhook: parses AT inbound SMS; routes to registered inbound handlers.
+register_inbound_handler: attach downstream logic to inbound reply events.
 """
+import logging
 import time
 from datetime import datetime, timezone
 
@@ -20,22 +24,58 @@ from agent.utils import (
 
 africastalking.initialize(AT_USERNAME, AT_API_KEY)
 _sms = africastalking.SMS
+_logger = logging.getLogger(__name__)
 
+# ── downstream handler registry ───────────────────────────────────────────────
+# External logic attaches inbound reply handlers here.
+
+_inbound_handlers: list = []
+
+
+def register_inbound_handler(handler) -> None:
+    """Register a callable that receives parsed inbound SMS events."""
+    _inbound_handlers.append(handler)
+
+
+# ── send ──────────────────────────────────────────────────────────────────────
 
 async def send_sms(
     to: str,
     message: str,
     trace_id: str,
+    is_warm_lead: bool = False,
 ) -> dict:
     """
     Send an SMS via Africa's Talking.
 
+    Channel hierarchy gate: SMS is restricted to warm leads only.
+    Cold outreach MUST use the email channel instead.
+
     When KILL_SWITCH_LIVE_OUTBOUND is false the message is routed to
     OUTBOUND_SINK_SMS — the real recipient is never contacted.
 
+    Args:
+        to:           recipient phone number
+        message:      SMS body text
+        trace_id:     Langfuse trace ID for span emission
+        is_warm_lead: MUST be True to allow sending. Cold outreach is blocked.
+
     Returns:
         {recipients, to, intended_to, status, timestamp}
+
+    Raises:
+        PermissionError: if is_warm_lead is False (cold outreach blocked).
+        ValueError:      if message is empty (malformed input guard).
     """
+    if not is_warm_lead:
+        raise PermissionError(
+            "SMS is restricted to warm leads only. "
+            "Use the email channel for cold outreach."
+        )
+
+    if not message or not message.strip():
+        raise ValueError("send_sms: message body is required")
+
     t0 = time.monotonic()
     actual_to = to if KILL_SWITCH_LIVE else OUTBOUND_SINK_SMS
     status = "sent" if KILL_SWITCH_LIVE else "sink"
@@ -44,11 +84,10 @@ async def send_sms(
     try:
         sender = str(AT_SHORTCODE) if AT_SHORTCODE else None
         response = _sms.send(message, [actual_to], sender_id=sender)
-        recipients = (
-            response.get("SMSMessageData", {}).get("Recipients", [])
-        )
+        recipients = response.get("SMSMessageData", {}).get("Recipients", [])
     except Exception as exc:
-        status = f"error:{exc}"
+        status = f"error"
+        _logger.error("Africa's Talking send failed to=%s: %s", actual_to, exc)
 
     latency_ms = (time.monotonic() - t0) * 1000
     result = {
@@ -65,6 +104,7 @@ async def send_sms(
         input={
             "to": actual_to,
             "intended_to": to,
+            "is_warm_lead": is_warm_lead,
             "kill_switch_live": KILL_SWITCH_LIVE,
         },
         output=result,
@@ -73,19 +113,39 @@ async def send_sms(
     return result
 
 
+# ── inbound webhook ───────────────────────────────────────────────────────────
+
 def handle_inbound_webhook(payload: dict) -> dict:
     """
-    Extract sender and message text from an Africa's Talking inbound SMS webhook.
+    Parse an Africa's Talking inbound SMS webhook and route to registered handlers.
 
-    Africa's Talking POST body (form-encoded, parsed to dict by FastAPI):
+    AT POST body fields (form-encoded, parsed to dict by FastAPI):
         from, text, to, date, id, linkId
 
+    Inbound replies are dispatched to all registered inbound handlers so
+    downstream logic (e.g. conversation continuity, CRM logging) can act on them.
+
     Returns:
-        {from, text, to, timestamp}
+        {event, from, text, to, timestamp}
+
+    Raises:
+        TypeError: if payload is not a dict (malformed input guard).
     """
-    return {
+    if not isinstance(payload, dict):
+        raise TypeError(f"handle_inbound_webhook: expected dict, got {type(payload).__name__}")
+
+    result = {
+        "event": "inbound_sms",
         "from": payload.get("from", ""),
         "text": payload.get("text", ""),
         "to": payload.get("to", ""),
         "timestamp": payload.get("date", datetime.now(timezone.utc).isoformat()),
     }
+
+    for handler in _inbound_handlers:
+        try:
+            handler(result)
+        except Exception as exc:
+            _logger.error("inbound SMS handler %s raised: %s", handler, exc)
+
+    return result

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 import jsonschema
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 load_dotenv()
 
@@ -83,6 +84,20 @@ class _NoopLangfuse:
     """Drop-in when Langfuse init fails — swallows all calls silently."""
     def create_trace_id(self): return "noop"
     def flush(self): pass
+
+
+# ── OpenRouter client ─────────────────────────────────────────────────────────
+_oai_client: AsyncOpenAI | None = None
+
+
+def _get_oai_client() -> AsyncOpenAI:
+    global _oai_client
+    if _oai_client is None:
+        _oai_client = AsyncOpenAI(
+            api_key=os.getenv("OPENROUTER_API_KEY", ""),
+            base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        )
+    return _oai_client
 
 
 class _LangfuseTraceProxy:
@@ -158,6 +173,72 @@ def _make_trace(lf, company_name: str, now_iso: str) -> "_LangfuseTraceProxy":
         return _LangfuseTraceProxy(_NoopLangfuse(), {})
 
 
+# ── leadership change detection ───────────────────────────────────────────────
+
+async def _detect_leadership_change_llm(
+    company_name: str,
+    role_titles: list,
+    industry: str | None,
+    langfuse_trace,
+) -> tuple[dict, float]:
+    """
+    Use Qwen3 via OpenRouter to infer whether a recent C-suite/VP technology
+    leadership change has occurred at the company.
+
+    Returns:
+        (leadership_change_dict, confidence_float)
+        leadership_change_dict matches the hiring_signal_brief.schema.json shape.
+    """
+    model = os.getenv("DEV_MODEL", "qwen/qwen3-235b-a22b")
+    roles_preview = ", ".join(role_titles[:20]) if role_titles else "none"
+    prompt = (
+        f"You are a B2B sales intelligence analyst. Determine whether {company_name} "
+        f"(industry: {industry or 'unknown'}) has had a recent leadership change "
+        f"in a technology-relevant executive role (CTO, VP Engineering, CIO, "
+        f"Chief Data Officer, Head of AI) within the last 12 months.\n\n"
+        f"Open roles currently observed: {roles_preview}\n\n"
+        f"A high volume of senior engineering/platform roles is a soft indicator of "
+        f"a leadership transition. Base your judgement only on what can be inferred "
+        f"from the signals above — do NOT fabricate names or dates.\n\n"
+        f"Output ONLY valid JSON, no markdown:\n"
+        f'{{"detected": <true|false>, "role": "<cto|vp_engineering|cio|chief_data_officer|head_of_ai|other|none>", '
+        f'"confidence": <float 0.0-1.0>, "reasoning": "<one sentence>"}}'
+    )
+
+    default: dict = {"detected": False, "role": "none"}
+    default_conf = 0.2
+    try:
+        client = _get_oai_client()
+        resp = await client.chat.completions.create(
+            model=model,
+            temperature=0.0,
+            max_tokens=200,
+            messages=[
+                {"role": "system", "content": "Output only valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        raw = re.sub(r"```(?:json)?|```", "", raw).strip()
+        data = json.loads(raw)
+        detected = bool(data.get("detected", False))
+        role = str(data.get("role", "none")) if detected else "none"
+        confidence = max(0.0, min(1.0, float(data.get("confidence", 0.2))))
+        result: dict = {"detected": detected, "role": role}
+        if detected and data.get("new_leader_name"):
+            result["new_leader_name"] = str(data["new_leader_name"])
+        if detected and data.get("started_at"):
+            result["started_at"] = str(data["started_at"])
+        langfuse_trace.span(
+            name="leadership_change_detection",
+            input={"company": company_name, "model": model},
+            output=result,
+        )
+        return result, confidence
+    except Exception:
+        return default, default_conf
+
+
 # ── main pipeline ─────────────────────────────────────────────────────────────
 
 async def run_enrichment_pipeline(company_name: str) -> tuple[dict, dict]:
@@ -193,6 +274,19 @@ async def run_enrichment_pipeline(company_name: str) -> tuple[dict, dict]:
     _record_source(sources_checked, "job_post_scraper", job_data.get("status", "no_data"))
     _safe_span(trace, "job_scrape", domain, job_data)
 
+    # ── Step 3.5: Leadership change detection (LLM) ────────────────────────
+    leadership_change_data, leadership_confidence = await _detect_leadership_change_llm(
+        company_name=crunchbase_data.get("name") or company_name,
+        role_titles=job_data.get("role_titles", []),
+        industry=crunchbase_data.get("industry"),
+        langfuse_trace=trace,
+    )
+    _record_source(
+        sources_checked,
+        "leadership_change_llm",
+        "success" if leadership_change_data else "no_data",
+    )
+
     # ── Step 4: AI maturity scoring ─────────────────────────────────────────
     company_context = {
         "name": crunchbase_data.get("name") or company_name,
@@ -222,7 +316,9 @@ async def run_enrichment_pipeline(company_name: str) -> tuple[dict, dict]:
     )
 
     # ── Assemble hiring_signal_brief ────────────────────────────────────────
-    segment, seg_conf = _classify_segment(crunchbase_data, layoff_data, job_data, maturity_data)
+    segment, seg_conf = _classify_segment(
+        crunchbase_data, layoff_data, job_data, maturity_data, leadership_change_data
+    )
     tech_stack = _infer_tech_stack(job_data.get("role_titles", []), crunchbase_data.get("industry"))
     bench_match = _compute_bench_match(tech_stack)
     honesty_flags = _compute_honesty_flags(maturity_data, job_data, bench_match, layoff_data, crunchbase_data)
@@ -248,7 +344,7 @@ async def run_enrichment_pipeline(company_name: str) -> tuple[dict, dict]:
         "buying_window_signals": {
             "funding_event": _funding_event(crunchbase_data),
             "layoff_event": _layoff_event(layoff_data),
-            "leadership_change": {"detected": False, "role": "none"},
+            "leadership_change": leadership_change_data,
         },
         "tech_stack": tech_stack,
         "bench_to_brief_match": bench_match,
@@ -310,6 +406,7 @@ def _classify_segment(
     layoff_data: dict,
     job_data: dict,
     maturity_data: dict,
+    leadership_change: dict | None = None,
 ) -> tuple[str, float]:
     now = datetime.now(timezone.utc)
 
@@ -366,8 +463,12 @@ def _classify_segment(
     if layoff_recent_120d and employees >= 100:
         return "segment_2_mid_market_restructure", 0.62
 
-    # Segment 3 (leadership change) — not detectable from current data sources
-    # Skipped intentionally; segment_confidence would be < 0.6 anyway
+    # Segment 3 (leadership change)
+    if leadership_change and leadership_change.get("detected"):
+        role = leadership_change.get("role", "other")
+        if role in ("cto", "vp_engineering", "cio", "chief_data_officer", "head_of_ai"):
+            return "segment_3_leadership_transition", 0.72
+        return "segment_3_leadership_transition", 0.62
 
     if maturity_score >= 2 and ai_role_count >= 3:
         return "segment_4_specialized_capability", 0.70
@@ -405,9 +506,16 @@ def _funding_event(crunchbase_data: dict) -> dict:
     mapped = next((v for k, v in _STAGE_MAP.items() if k in stage_raw), None)
 
     if not mapped and not stage_raw:
-        return {"detected": False, "stage": "none"}
+        return {"detected": False, "stage": "none", "confidence": 0.1}
 
-    event: dict = {"detected": mapped is not None, "stage": mapped or "other"}
+    has_supporting_data = bool(
+        crunchbase_data.get("funding_total") or crunchbase_data.get("last_funding_date")
+    )
+    event: dict = {
+        "detected": mapped is not None,
+        "stage": mapped or "other",
+        "confidence": 0.80 if (mapped and has_supporting_data) else 0.50 if mapped else 0.25,
+    }
     funding_total = crunchbase_data.get("funding_total")
     if funding_total is not None:
         try:
@@ -425,8 +533,12 @@ def _funding_event(crunchbase_data: dict) -> dict:
 
 def _layoff_event(layoff_data: dict) -> dict:
     if not layoff_data.get("detected"):
-        return {"detected": False}
-    event: dict = {"detected": True}
+        return {"detected": False, "confidence": 0.1}
+    has_detail = bool(layoff_data.get("percentage_cut") or layoff_data.get("headcount_reduction"))
+    event: dict = {
+        "detected": True,
+        "confidence": 0.90 if has_detail else 0.70,
+    }
     if layoff_data.get("date"):
         event["date"] = str(layoff_data["date"])
     hr = layoff_data.get("headcount_reduction")
