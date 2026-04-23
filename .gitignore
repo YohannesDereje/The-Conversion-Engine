@@ -1,0 +1,37 @@
+# Environment variables
+.env
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Proprietary client data and templates
+tenacious_sales_data/
+
+# Generated reports and documents
+*.pdf
+*.docx
+*.html
+
+# Generated data files and logs
+hiring_signal_brief.json
+competitor_gap_brief.json
+
+# Large data files
+data/*.csv
+data/*.bin
+data/*.png
+data/*.html
+data/raw_*
+data/debug_*
+data/fetch_*
+data/scrape_*
+data/decode_*

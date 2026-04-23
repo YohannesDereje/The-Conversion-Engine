@@ -1,0 +1,26 @@
+# Core Application & Web Framework
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+python-multipart
+
+# AI & LLM Interaction
+langfuse
+openai
+
+# Data Handling & Enrichment
+pandas
+beautifulsoup4
+thefuzz[speedup]
+jsonschema
+requests
+
+# Web Scraping
+playwright
+
+# API Clients
+resend
+africastalking
+httpx
+hubspot-api-client
