@@ -1,548 +1,543 @@
 # Conversion Engine — Session Handover Document
 
 **Project:** Tenacious Consulting Conversion Engine (10Academy Week 10 challenge)
-**Handover written:** 2026-04-23 ~20:00 UTC
-**Interim submission deadline:** 2026-04-25 21:00 UTC (~48 hours from handover)
+**Handover written:** 2026-04-25 (final submission day — deadline 21:00 UTC TODAY)
 **Working directory:** `c:\Users\Yohannes\Desktop\tenx education\Weeks\week 10\The conversion Engine`
-**Codebase is NOT a git repo yet** — no commits have been made.
+**Codebase is NOT a git repo yet** — still needs `git init` and push (P6-E).
+
+---
+
+## URGENT — DEADLINE IS TODAY 21:00 UTC
+
+The next Claude session must focus ONLY on the remaining critical-path items.
+**Do not refactor anything that works. Do not add features. Finish the checklist.**
+
+The shortest path to a valid submission:
+1. P3-G1 — SMS scheduling (30 min)
+2. P3-L1 — End-to-end smoke test (30 min) ← verifies today's work
+3. P4-A + P4-B1-B10 + P4-C + P4-D + P4-E + P4-F — Probes + documents (2–3 hours)
+4. P5-A through P5-K — Mechanism + ablation (2–3 hours)
+5. P6-A + P6-B + P6-C + P6-D + P6-E — Memo + README + push (2–3 hours)
+
+Items P3-H1/H2, P3-I1/I2, P3-J1, P3-K1 are **NOT on the critical path** — skip them if time is tight.
 
 ---
 
 ## 1. What This Project Is
 
-An automated B2B outbound lead-generation system for Tenacious Consulting and Outsourcing.
-The system finds engineering-leader prospects, enriches them with hiring signals and competitor
-analysis, composes personalised outreach emails, sends them via Resend, logs contacts to HubSpot,
-and books discovery calls via Cal.com. All LLM calls use **Qwen3-235B via OpenRouter** at
-temperature 0.0 and are traced to Langfuse.
+An automated B2B outbound lead-generation system for Tenacious Consulting.
+The system enriches prospects with hiring/competitor signals, composes cold outreach,
+sends emails via Resend, manages a 3-email cold sequence, classifies inbound warm replies
+and responds appropriately, logs everything to HubSpot, and books discovery calls via Cal.com.
+All LLM calls use **Qwen3-235B-A22B via OpenRouter** at temperature 0.0. Traced to Langfuse.
 
-**Kill switch:** `KILL_SWITCH_LIVE_OUTBOUND=false` in `.env` — ALL outbound must route to the
-sink addresses while this is false. Never change this without explicit staff approval.
-
----
-
-## 2. How to Continue (Workflow)
-
-The user generates Gemini prompts for each Group, pastes them here, and the Claude session
-implements them. **Always cross-reference `todos.md`** — Gemini sometimes omits specific
-todos. If a todo exists in `todos.md` but was not in the Gemini prompt, implement it anyway.
-
-To resume: `cd "c:\Users\Yohannes\Desktop\tenx education\Weeks\week 10\The conversion Engine"`
-then run `python -m agent.enrichment.pipeline --company "Stripe"` to confirm the pipeline
-still works.
+**Kill switch:** `KILL_SWITCH_LIVE_OUTBOUND=false` in `.env` — all outbound routes to
+`OUTBOUND_SINK_EMAIL=yohannesdereje1221@gmail.com`. **Never change this to true** without
+explicit approval.
 
 ---
 
-## 3. Completed Groups (A–E)
+## 2. Completed Work (All Phases up to today)
 
-### Group A — Environment (manual setup, all done)
-- A1: HubSpot private app created; `HUBSPOT_ACCESS_TOKEN=pat-eu1-37460b4f...` in `.env`; `HUBSPOT_PORTAL_ID=148328985`
-- A2: Cal.com Cloud (free tier, not self-hosted); `CALCOM_API_KEY=cal_live_373a554a...`; `CALCOM_BASE_URL=https://api.cal.com`; `CALCOM_EVENT_TYPE_ID=5467186`
-- A3: ngrok tunnel configured; `AFRICAS_TALKING_WEBHOOK_URL=https://amendment-evergreen-abrasive.ngrok-free.dev/sms/webhook`
-- A4: `data/layoffs_fyi.csv` — 4,361 rows, 11 columns, scraped from layoffs.fyi via Playwright route interception of Airtable embed
-- A5: Resend `FROM` email is `onboarding@resend.dev` (sandbox)
+### Phase 1 — Initial Build (Groups A through J) ← 100/100 on Apr 23
+All of Groups A–J are complete. The full system was built and submitted for interim review.
 
-### Group B — Project Structure (done)
-- `agent/`, `agent/enrichment/`, `eval/`, `infra/`, `scripts/` directories created
-- All `__init__.py` files created
-- `agent/requirements.txt` created (see Section 6 below)
+### Phase 2 — Compliance Fixes (P2-A through P2-I) ← All done
+- P2-A: `policy/acknowledgement_signed.txt` created
+- P2-B: `X-Tenacious-Status: draft` header added to all outgoing emails
+- P2-C: `tenacious_status: "draft"` added to all HubSpot contact writes
+- P2-D: User agent set to `"TRP1-Week10-Research (trainee@trp1.example)"`
+- P2-E: 2-second inter-request delays added to job scraper
+- P2-F: `robots.txt` check added before scraping each domain
+- P2-G: Python word-limit enforcer added to agent_core.py (120 words Email 1)
+- P2-H: Segment priority order audited and fixed in pipeline.py
+- P2-I: Smoke test passed (email in sink, HubSpot contact created, tone probe working)
 
-### Group C — Data Layer (done)
-- `agent/enrichment/crunchbase_enricher.py` — fuzzy match against Crunchbase CSV, threshold 85
-- `agent/enrichment/layoffs_enricher.py` — fuzzy match against layoffs_fyi.csv, threshold 85
+### Phase 3 — System Completion
 
-**Known Crunchbase CSV limitation:** The CSV (`data/crunchbase-companies-information.csv`) is
-a 1,000-row ODM sample of obscure/smaller companies. Well-known companies like Stripe, OpenAI,
-and Shopify score ~65-75 (below the 85 threshold) and return `{"error": "Company not found"}`.
-This is expected. The pipeline handles it gracefully — enrichment proceeds with whatever
-data is available, and the LLM works from what it knows.
+**P3-A1/A2** — SerpAPI fallback in job_post_scraper.py. Done.
+- Playwright → SerpAPI fallback chain implemented
+- `google-search-results>=2.4.2` added to requirements.txt
+- `SERPAPI_API_KEY` in .env
 
-### Group D — Enrichment Pipeline (done)
+**P3-B1/B2** — HubSpot sequence state tracking. Done.
+- Two custom properties manually created in HubSpot portal:
+  `outreach_sequence_step` and `outreach_last_sent_at`
+- `update_sequence_step()` and `get_sequence_state()` added to hubspot_handler.py
 
-| File | Status | Notes |
-|------|--------|-------|
-| `agent/enrichment/job_post_scraper.py` | Done | Async Playwright scraper; tries Wellfound + company careers page; graceful `{"status": "no_data"}` fallback |
-| `agent/enrichment/ai_maturity_scorer.py` | Done | Qwen3 via OpenRouter; scores 0-3; all 6 schema signal enums; Langfuse generation span |
-| `agent/enrichment/competitor_gap_builder.py` | Done | Finds 5-10 sector peers from Crunchbase CSV; batch-scores AI maturity; generates 1-3 gap findings |
-| `agent/enrichment/pipeline.py` | Done | Async orchestrator; Langfuse v4 trace proxy; segment classifier; schema validation; D5 smoke test via `--company` arg |
+**P3-C1/C2/C3** — Email sequence completion (all 3 cold emails). Done.
+- `compose_followup_email_2()` — 100-word limit, competitor gap grounded
+- `compose_closing_email_3()` — 70-word limit, gracious close
+- `POST /leads/followup` endpoint — state machine: step 1 (day 5) → step 2 (day 12) → CLOSED
 
-**Smoke test command:**
-```bash
-cd "c:\Users\Yohannes\Desktop\tenx education\Weeks\week 10\The conversion Engine"
-python -m agent.enrichment.pipeline --company "Stripe" --out-dir "."
-```
-Produces `hiring_signal_brief.json` and `competitor_gap_brief.json` in the project root.
-Both validate against `tenacious_sales_data/schemas/*.schema.json`.
+**P3-D1** — Cal.com slots injected into Email 1. Done.
+- `get_available_slots()` called before LLM; 2 slots formatted and appended after 120-word body
+- Cal block NOT counted in word limit
 
-**Langfuse version:** v4.5.0 — the old `langfuse.trace()` API is gone. Use the compatibility
-proxy in `pipeline.py` (`_LangfuseTraceProxy`, `_make_trace`, etc.). The pattern is:
-```python
-lf = _get_langfuse()
-trace_id = lf.create_trace_id()
-from langfuse.types import TraceContext
-tc = TraceContext(trace_id=trace_id, name="my_trace")
-obs = lf.start_observation(trace_context=tc, name="step", as_type="generation", model="...", input=...)
-obs.update(output=response_text)
-obs.end()
-lf.flush()
-```
+**P3-E1/E2** — Tone preservation probe. Done.
+- `agent/tone_probe.py` — 5 markers, Qwen3 call, pass=≥4/5
+- Wired into all 3 compose functions in agent_core.py
+- `tone_probe_result` returned in every compose response and in /leads/process JSON
 
-### Group E — Agent Core (done)
-
-**File:** `agent/agent_core.py`
-
-**Main function:** `async def compose_outreach(hiring_signal_brief, competitor_gap_brief, conversation_history=None) -> dict`
-
-**Returns:**
-```python
-{
-    "email_to_send":       str,      # full email with subject on line 1
-    "icp_segment":         int|str,  # 1, 2, 3, 4, or "abstain"
-    "llm_confidence":      float,    # 0.0–1.0 from LLM
-    "bench_match_result":  {"match": bool, "missing_skills": list},
-    "decision_override":   bool,     # True if any Python rule fired
-    "langfuse_trace_id":   str,
-}
-```
-
-**System prompt reads at startup:**
-- `tenacious_sales_data/seed/style_guide.md` — 5 tone markers (Direct, Grounded, Honest, Professional, Non-condescending)
-- `tenacious_sales_data/seed/icp_definition.md` — 4 ICP segment definitions + classification rules
-- `tenacious_sales_data/seed/bench_summary.json` — current engineering capacity
-- `tenacious_sales_data/seed/email_sequences/cold.md` — 3-email sequence structure, subject patterns, per-segment body format
-
-**E2 business rules enforced in Python after LLM call (not delegated to model):**
-1. `segment_confidence < 0.6` → override `icp_segment` to `"abstain"`
-2. `icp_segment == 4` AND `ai_maturity.score < 2` → override to `"abstain"`
-3. `bench_to_brief_match.bench_available == False` (from HSB) OR LLM's `required_skills` maps to 0-availability stacks → `decision_override = True`
-4. LLM call fails → fallback generic email, `decision_override = True`
-
-**E3 routing:** `cold.md` is embedded in the system prompt. The LLM receives the exact
-4-sentence body structure, subject line patterns per segment (`Context:` for Seg 1,
-`Note on` for Seg 2, `Congrats on the` for Seg 3, `Question on` for Seg 4), and
-per-segment adjustments.
+**P3-F1 through P3-F5** — Reply classification and warm handling. **COMPLETED TODAY.**
+See Section 4 below for full details.
 
 ---
 
-## 4. Remaining Groups (F–J) — What Needs to Be Built
+## 3. Current File Inventory (Complete)
 
-### Group F — Integration Handlers (~1.5 hours) ← START HERE
-
-#### F1: `agent/email_handler.py`
-```python
-def send_email(to: str, subject: str, body: str, trace_id: str) -> dict
-def handle_reply_webhook(payload: dict) -> dict
 ```
-- Use `resend` Python package (`import resend`)
-- `resend.api_key = os.getenv("RESEND_API_KEY")`
-- `KILL_SWITCH_LIVE_OUTBOUND`: if `os.getenv("KILL_SWITCH_LIVE_OUTBOUND") != "true"`, send to `os.getenv("OUTBOUND_SINK_EMAIL")` instead of the real `to` address
-- `RESEND_FROM_EMAIL = onboarding@resend.dev`
-- `handle_reply_webhook` parses the Resend inbound webhook payload: extract `reply_text`, `thread_id`, `from_email`
+agent/
+  __init__.py
+  agent_core.py              compose_outreach, compose_followup_email_2, compose_closing_email_3
+  calcom_handler.py          get_available_slots, book_slot (with HubSpot integration)
+  context_brief_composer.py  compose_discovery_call_brief [NEW TODAY]
+  email_handler.py           send_email, handle_reply_webhook, register_reply_handler
+  hubspot_handler.py         create_or_update_contact, log_email_activity, log_meeting_booked,
+                             update_sequence_step, get_sequence_state, update_lead_status,
+                             get_contact_by_email [NEW TODAY]
+  main.py                    /leads/process, /leads/followup, /email/webhook [UPDATED TODAY],
+                             /sms/webhook, /health
+  reply_classifier.py        classify_reply [NEW TODAY]
+  reply_composer.py          detect_handoff_triggers, compose_engaged_reply,
+                             compose_curious_reply, compose_soft_defer_reply,
+                             compose_objection_reply, handle_hard_no,
+                             handle_ambiguous_reply, compose_handoff_message [NEW TODAY]
+  requirements.txt
+  sms_handler.py             send_sms, handle_inbound_webhook, send_scheduling_sms (pending P3-G1)
+  tone_probe.py              score_tone
+  utils.py                   KILL_SWITCH_LIVE, emit_span, get_langfuse, all constants
+  enrichment/
+    __init__.py
+    ai_maturity_scorer.py
+    competitor_gap_builder.py
+    crunchbase_enricher.py
+    job_post_scraper.py      (with SerpAPI fallback + robots.txt + rate limiting)
+    layoffs_enricher.py
+    pipeline.py
 
-#### F2: `agent/sms_handler.py`
-```python
-def send_sms(to: str, message: str, trace_id: str) -> dict
-def handle_inbound_webhook(payload: dict) -> dict
+data/
+  layoffs_fyi.csv            4,361 rows
+  crunchbase-companies-information.csv  1,000 rows
+
+eval/
+  __init__.py
+  tau2_bench_runner.py       (completed in Phase 1)
+  score_log.json             (generated by runner)
+  trace_log.jsonl            (generated by runner)
+
+scripts/
+  __init__.py
+  generate_synthetic_interactions.py  (completed in Phase 1)
+
+tenacious_sales_data/
+  seed/
+    icp_definition.md
+    style_guide.md
+    bench_summary.json
+    email_sequences/cold.md, warm.md, reengagement.md
+    baseline_numbers.md, case_studies.md, pricing_sheet.md
+    sales_deck_notes.md, discovery_transcripts/ (5 files)
+  schemas/
+    hiring_signal_brief.schema.json
+    competitor_gap_brief.schema.json
+    discovery_call_context_brief.md       <- 10-section template used by P3-F4
+  policy/
+    acknowledgement_signed.txt            <- P2-A (required for smoke test)
+    data_handling_policy.md
+
+.env                         (see Section 7 — do not commit)
+baseline.md                  (Phase 1 τ²-Bench baseline)
+README.md                    (Phase 1, needs update for Phase 3 components)
+handover.md                  (this file)
+todos.md                     (complete task list all phases)
+hiring_signal_brief.json     (sample output from smoke test)
+competitor_gap_brief.json    (sample output from smoke test)
 ```
-- Use `africastalking` Python package
-- Init: `africastalking.initialize(username, api_key)`, then `sms = africastalking.SMS`
-- `KILL_SWITCH_LIVE_OUTBOUND`: if not `"true"`, send to `os.getenv("OUTBOUND_SINK_SMS")` instead
-- `AFRICAS_TALKING_USERNAME = sandbox`, `AFRICAS_TALKING_API_KEY = atsk_b8aeaa...`
-- `handle_inbound_webhook`: extract `sender`, `message`, `date`
-
-#### F3: `agent/hubspot_handler.py`
-```python
-def create_or_update_contact(contact_data: dict, trace_id: str) -> str  # returns HubSpot contact ID
-def log_email_activity(contact_id: str, email_data: dict) -> None
-def log_meeting_booked(contact_id: str, cal_event_data: dict) -> None
-```
-- Use `hubspot-api-client` package (`from hubspot import HubSpot`)
-- `client = HubSpot(access_token=os.getenv("HUBSPOT_ACCESS_TOKEN"))`
-- Required contact fields: `firstname`, `lastname`, `email`, `company`, `hs_lead_status`,
-  `industry`, `crunchbase_id`, `ai_maturity_score`, `icp_segment`, `enrichment_timestamp`,
-  `hiring_signal_brief` (JSON string of the full brief)
-- Use `client.crm.contacts.basic_api.create()` or `update()` with upsert by email
-- `log_email_activity`: create engagement of type EMAIL on the contact
-- `log_meeting_booked`: create engagement of type MEETING on the contact
-
-#### F4: `agent/calcom_handler.py`
-```python
-async def get_available_slots(days_ahead: int = 7) -> list
-async def book_slot(slot_datetime: str, attendee_email: str, attendee_name: str, discovery_call_context_brief: dict) -> dict
-```
-- Use `httpx` for async HTTP (`import httpx`)
-- `CALCOM_BASE_URL = https://api.cal.com`, `CALCOM_API_KEY = cal_live_373a554a...`
-- Cal.com Cloud API v2 — NOT v1 (v1 is decommissioned)
-- `get_available_slots`: GET `{CALCOM_BASE_URL}/v2/slots?eventTypeId={CALCOM_EVENT_TYPE_ID}&startTime=...&endTime=...`
-  Auth: header `Authorization: Bearer {CALCOM_API_KEY}`
-- `book_slot`: POST `{CALCOM_BASE_URL}/v2/bookings`
-  Body: `{"eventTypeId": CALCOM_EVENT_TYPE_ID, "start": slot_datetime, "attendee": {"name": ..., "email": ..., "timeZone": "UTC"}, "metadata": {"discovery_context": json.dumps(discovery_call_context_brief)}}`
-- Attach `discovery_call_context_brief` as booking notes/metadata
-
-#### F5: Langfuse tracing in ALL handlers
-Every public function in F1–F4 must:
-- Accept `trace_id: str` parameter (already in signatures above)
-- Emit a Langfuse span using the same `_LangfuseTraceProxy` or direct `start_observation()` pattern from `pipeline.py`
-- Record: `name`, `input`, `output`, `latency_ms`
-
-### Group G — FastAPI App (~30 min)
-
-#### G1: `agent/main.py`
-```python
-@app.post("/leads/process")
-async def process_lead(body: LeadRequest) -> dict:
-    # LeadRequest: company, contact_email, contact_name
-    # Full pipeline: enrich → agent → email → HubSpot
-    # Returns: trace_id, icp_segment, email_sent_to, hubspot_contact_id
-
-@app.post("/email/webhook")
-async def email_webhook(request: Request) -> dict:
-    # Resend reply webhook handler
-
-@app.post("/sms/webhook")
-async def sms_webhook(request: Request) -> dict:
-    # Africa's Talking inbound webhook
-
-@app.get("/health")
-async def health() -> dict:
-    # Returns status of all components
-```
-
-Run with: `uvicorn agent.main:app --host 0.0.0.0 --port 8000 --reload`
-
-#### G2: End-to-end test
-```bash
-curl -X POST http://localhost:8000/leads/process \
-  -H "Content-Type: application/json" \
-  -d '{"company": "Stripe", "contact_email": "test@sink.com", "contact_name": "Test User"}'
-```
-Verify: Langfuse trace appears, HubSpot contact created, email logged to sink, no errors.
-
-#### G3: 20 synthetic interactions
-`scripts/generate_synthetic_interactions.py` — loads 20 companies from Crunchbase CSV,
-POSTs each to `/leads/process`, records p50/p95 latency.
-
-### Group H — τ²-Bench Harness (~1 hour)
-
-#### H1–H5: `eval/tau2_bench_runner.py`
-- Ask user where tau2-bench is cloned on their machine
-- Wraps τ²-Bench retail domain runner
-- Uses `qwen/qwen3-235b-a22b` via OpenRouter, temperature 0.0
-- 5 trials × 30-task dev slice
-- Records `pass@1`, mean, Wilson 95% CI, cost_usd, p50/p95 latency per trial
-- Writes `eval/score_log.json` and `eval/trace_log.jsonl`
-
-### Group I — Documentation (~45 min)
-
-#### I1–I4:
-- `baseline.md` (max 400 words): what was reproduced, CI result, cost/run, latency, surprises
-- `README.md` at repo root: architecture ASCII diagram, stack status, setup instructions,
-  kill-switch docs, uvicorn run command, τ²-Bench harness instructions
-- `.gitignore`: must exclude `.env`, `__pycache__`, `*.pyc`, `*.bin`, `data/*.csv`
-- Push to GitHub (`git init`, add remote, push)
-
-### Group J — PDF Interim Report (~30 min)
-
-`interim_report.md` → convert to PDF via pandoc or similar.
-Required sections:
-1. Architecture overview + design decisions
-2. Stack status (Resend, Africa's Talking, HubSpot, Cal.com, Langfuse, τ²-Bench)
-3. Enrichment pipeline status (all 5 signals)
-4. Competitor gap brief status (at least 1 test prospect)
-5. τ²-Bench baseline score + methodology
-6. p50/p95 latency from 20 interactions
-7. What's working, what's not, plan for remaining days
 
 ---
 
-## 5. Critical Architecture Details
+## 4. What Was Built TODAY (P3-F1 through P3-F5)
 
-### LLM Setup (OpenRouter + OpenAI client)
+### agent/reply_classifier.py (P3-F1)
+
+```python
+async def classify_reply(
+    reply_text: str,
+    thread_context: str = "",
+    trace_id: str = "",
+) -> dict
+```
+
+- 6 classes: `engaged`, `curious`, `hard_no`, `soft_defer`, `objection`, `ambiguous`
+- Qwen3 call with full `warm.md` embedded in system prompt
+- Abstains to `"ambiguous"` if LLM confidence < 0.70
+- Returns `{class, confidence, objection_type, reasoning}`
+- Emits Langfuse span
+
+### agent/reply_composer.py (P3-F2/F3)
+
+```python
+def detect_handoff_triggers(reply_text: str, contact_info: dict) -> dict
+# Returns {handoff: bool, trigger: str, reason: str}
+# 5 triggers: pricing_outside_bands, specific_staffing, client_reference, legal_terms, clevel_large_company
+
+def compose_handoff_message(contact_name: str, original_subject: str) -> dict
+# Fixed template: "Our delivery lead will follow up within 24 hours."
+
+async def compose_engaged_reply(hiring_brief, competitor_brief, reply_text, contact_name, original_subject, cal_slots, trace_id) -> dict
+# 150-word body limit, Cal slots appended, tone probe
+
+async def compose_curious_reply(hiring_brief, reply_text, contact_name, original_subject, cal_slots, trace_id) -> dict
+# 90-word body limit, Cal slots appended, tone probe
+
+async def compose_soft_defer_reply(reply_text, contact_name, original_subject, trace_id) -> dict
+# 60-word body limit, no Cal block, returns reengage_month
+
+async def compose_objection_reply(hiring_brief, competitor_brief, reply_text, objection_type, contact_name, original_subject, cal_slots, trace_id) -> dict
+# 120-word body limit, handles price/incumbent_vendor/poc_only/other, Cal slots
+
+async def handle_hard_no(contact_id, from_email, reply_text, trace_id) -> dict
+# NO email sent. Marks HubSpot DISQUALIFIED + sequence_step=hard_no. Langfuse span.
+
+async def handle_ambiguous_reply(contact_id, reply_text, trace_id) -> dict
+# NO email sent. Logs HubSpot note for human review. Langfuse span.
+```
+
+All return structures: `{subject, body, word_count, honesty_flags, tone_probe_result}`
+
+### agent/context_brief_composer.py (P3-F4)
+
+```python
+async def compose_discovery_call_brief(
+    prospect_name, prospect_title, prospect_company,
+    call_datetime_utc, call_duration_minutes, tenacious_lead_name,
+    original_subject, thread_start_date, langfuse_trace_id,
+    hiring_signal_brief, competitor_gap_brief, conversation_history,
+    trace_id="",
+) -> str  # Returns Markdown with all 10 sections from the template
+```
+
+- Fills all 10 sections from `tenacious_sales_data/schemas/discovery_call_context_brief.md`
+- Falls back to `_fallback_brief()` if LLM fails
+- Emits Langfuse span
+
+### agent/hubspot_handler.py — new function (P3-F5 dependency)
+
+```python
+async def get_contact_by_email(email: str, trace_id: str = "") -> dict
+# Returns: {contact_id, firstname, lastname, company, icp_segment,
+#           outreach_sequence_step, hiring_signal_brief (parsed dict)}
+# Returns {} if not found.
+```
+
+### agent/main.py — updated /email/webhook (P3-F5)
+
+The `/email/webhook` endpoint now runs the full warm reply pipeline:
+1. Parse webhook → `reply_text`, `from_email`, `original_subject`
+2. `get_contact_by_email(from_email)` → contact details + stored `hiring_signal_brief`
+3. `classify_reply(reply_text)` → class + confidence
+4. `detect_handoff_triggers(reply_text, contact_info)` — for engaged/curious/objection
+5. Route:
+   - `hard_no` → `handle_hard_no()`, no email, return immediately
+   - `ambiguous` → `handle_ambiguous_reply()`, no email, return immediately
+   - handoff triggered → `compose_handoff_message()` → `send_email()` → `update_lead_status(REPLIED)`
+   - `engaged` → `compose_engaged_reply()` + Cal slots → `send_email()`
+   - `curious` → `compose_curious_reply()` + Cal slots → `send_email()`
+   - `soft_defer` → `compose_soft_defer_reply()` → `send_email()` → `update_lead_status(STALLED)`
+   - `objection` → `compose_objection_reply()` + Cal slots → `send_email()`
+6. `log_email_activity()` to HubSpot, `update_lead_status(REPLIED)` for non-defer classes
+
+Response JSON includes: `reply_class`, `classification_confidence`, `email_routed_to`,
+`subject`, `word_count`, `honesty_flags`, `tone_probe_result`, `contact_id`, `langfuse_trace_id`.
+
+---
+
+## 5. What Still Needs to Be Done (Remaining todos)
+
+### CRITICAL PATH FOR SUBMISSION (do in this order):
+
+**P3-G1** — `send_scheduling_sms()` in `agent/sms_handler.py` (~20 min)
+```python
+async def send_scheduling_sms(to, contact_name, slot_datetime, cal_link, trace_id)
+```
+Template (strict, under 160 chars):
+`"Hi {Name} — Elena at Tenacious. Per our email thread: {slot}? Cal confirms at: {cal_link}. Reply N if slot no longer works."`
+Validate `len(message) < 160` before sending. Kill switch applies. Emit Langfuse span.
+Only fires when contact has replied (engaged/curious) + has phone in HubSpot + no confirmed booking yet.
+
+**P3-L1** — Smoke test of everything built (~30 min, manual + automated)
+See todos.md P3-L1 for the 5 test scenarios. Run them and confirm each passes.
+
+**Phase 4 — Adversarial Probes** (~3 hours — SEE SECTION 6 BELOW)
+All 30+ probe entries in `probes/probe_library.md` plus `failure_taxonomy.md`,
+`target_failure_mode.md`, and `method.md`. These are written documents + running tests.
+
+**Phase 5 — Mechanism** (~2.5 hours)
+Pick mechanism from warm-reply handoff detection or bench-gated commitment (already implemented).
+Run τ²-Bench ablation. Fill out `probes/ablation_results.json`.
+
+**Phase 6 — Final Submission** (~2 hours)
+`memo.pdf` (exactly 2 pages), final `README.md`, `evidence_graph.json`, demo video, git push.
+
+### SKIP IF OUT OF TIME (not on critical path):
+- P3-H1/H2 — Re-engagement sequence (nice-to-have)
+- P3-I1/I2 — Full HubSpot state machine (partial already done)
+- P3-J1 — Multi-thread safeguard (already in the code via per-email keying)
+- P3-K1 — Langfuse cost attribution fix (observability only, not graded directly)
+
+---
+
+## 6. Phase 4 Quick Reference (probes)
+
+The new Claude session must create `probes/` directory and these files:
+- `probes/probe_library.md` — ≥30 probe entries (see todos.md P4-B1 through P4-B10 for all entries)
+- `probes/failure_taxonomy.md` — 10 categories, pass rates, trigger conditions
+- `probes/target_failure_mode.md` — single highest-ROI failure mode + mechanism proposal
+- `probes/method.md` — Sections 1–6 (ICP, tone probe, honesty constraints, reply classifier, re-engagement, handoff)
+
+**The fastest approach for probes:** Write the documents first, then run the tests against the live API.
+The probe test results go directly in `probe_library.md` Observed Behavior column.
+
+---
+
+## 7. Architecture — How Everything Connects
+
+```
+POST /leads/process
+  → run_enrichment_pipeline(company)
+      → crunchbase_enricher + layoffs_enricher + job_post_scraper (Playwright + SerpAPI fallback)
+      + ai_maturity_scorer (Qwen3) + competitor_gap_builder (Qwen3)
+  → compose_outreach(hiring_brief, competitor_brief)
+      → get_available_slots()  ← Cal.com v2 API
+      → Qwen3 via OpenRouter (system prompt = style_guide + icp_definition + bench_summary + cold.md)
+      → Python business rules (word limit 120, segment gates, bench check)
+      → score_tone()  ← Qwen3 tone probe
+  → create_or_update_contact()  ← HubSpot
+  → send_email()  ← Resend (kill switch routes to sink)
+  → log_email_activity()  ← HubSpot note
+  → update_sequence_step("1")  ← HubSpot
+
+POST /leads/followup
+  → get_sequence_state()  ← HubSpot
+  → compose_followup_email_2() or compose_closing_email_3()  ← Qwen3
+  → send_email() → log_email_activity() → update_sequence_step("2" or "3")
+
+POST /email/webhook  ← Resend inbound reply
+  → get_contact_by_email()  ← HubSpot
+  → classify_reply()  ← Qwen3 (warm.md embedded)
+  → detect_handoff_triggers()  ← keyword matching (5 rules)
+  → [route] compose_engaged/curious/soft_defer/objection_reply()  ← Qwen3
+            OR handle_hard_no() / handle_ambiguous_reply()  ← HubSpot update only
+  → send_email() → log_email_activity() → update_lead_status()
+
+POST /sms/webhook  ← Africa's Talking inbound
+  → handle_inbound_webhook()  ← basic parse
+
+GET /health
+  → returns all service key status
+```
+
+---
+
+## 8. Key Technical Details (for next session)
+
+### LLM Setup
 ```python
 from openai import AsyncOpenAI
 client = AsyncOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url=os.getenv("OPENROUTER_BASE_URL"),  # https://openrouter.ai/api/v1
+    base_url="https://openrouter.ai/api/v1",
 )
-# Model: qwen/qwen3-235b-a22b, temperature: 0.0, max_tokens varies per call
+# Model: qwen/qwen3-235b-a22b, temp: 0.0
 ```
-The `anthropic` SDK is NOT used for the dev-tier model. `ANTHROPIC_API_KEY` is still a
-placeholder — it's only needed for the eval tier (Groups H eval runs, not implemented yet).
 
-### Langfuse v4.5.0 API (breaking change from v2/v3)
-There is NO `langfuse.trace()` method. Use the pattern below consistently:
+### Langfuse v4 Pattern (required — v2/v3 API is gone)
 ```python
 from langfuse import Langfuse
 from langfuse.types import TraceContext
-
 lf = Langfuse(public_key=..., secret_key=..., host=...)
 trace_id = lf.create_trace_id()
-tc = TraceContext(trace_id=trace_id, name="my_operation")
-
-# For an LLM generation:
-obs = lf.start_observation(trace_context=tc, name="llm_call", as_type="generation",
-                            model=model_name, input=messages,
-                            usage_details={"input": prompt_tokens, "output": completion_tokens})
-obs.update(output=response_text)
-obs.end()
-
-# For a non-LLM step:
-obs = lf.start_observation(trace_context=tc, name="db_lookup", as_type="span", input=query)
+tc = TraceContext(trace_id=trace_id, name="my_op")
+obs = lf.start_observation(trace_context=tc, name="step", as_type="span", input=..., )
 obs.update(output=result)
 obs.end()
-
-lf.flush()  # must call at end of request
+lf.flush()
 ```
-The `_LangfuseTraceProxy` class in `pipeline.py` wraps this pattern with a v2-compatible
-`.generation()` / `.span()` / `.update()` interface and can be reused in new handlers.
 
-### Kill Switch Pattern (must be consistent across all outbound handlers)
+### Cal.com API v2 (Cloud — not self-hosted)
+- GET slots: `GET {CALCOM_BASE_URL}/v2/slots` with params `start`, `end`, `eventTypeId`
+  - NOT `/v2/slots/available`, NOT params `startTime`/`endTime` (those 404)
+- POST booking: `POST {CALCOM_BASE_URL}/v2/bookings`
+- Auth header: `"Authorization": f"Bearer {CALCOM_API_KEY}", "cal-api-version": "2024-09-04"`
+- Slot structure in response: `{"data": {"2026-04-29": [{"start": "2026-04-29T08:00:00Z"}, ...]}}`
+
+### HubSpot Custom Properties (must exist in portal before writes)
+All 8 must be manually created in HubSpot portal (Settings → Properties → Single-line text):
+- `crunchbase_id`, `ai_maturity_score`, `icp_segment`, `enrichment_timestamp`
+- `hiring_signal_brief`, `tenacious_status`
+- `outreach_sequence_step`, `outreach_last_sent_at`
+
+### Kill Switch Pattern
 ```python
-import os
-KILL_SWITCH = os.getenv("KILL_SWITCH_LIVE_OUTBOUND", "false").lower() == "true"
-SINK_EMAIL   = os.getenv("OUTBOUND_SINK_EMAIL", "staff-sink@program.com")
-SINK_SMS     = os.getenv("OUTBOUND_SINK_SMS", "+10000000000")
-
-def send_email(to, subject, body, trace_id):
-    actual_to = to if KILL_SWITCH else SINK_EMAIL
-    # ... resend call with actual_to ...
+KILL_SWITCH_LIVE = os.getenv("KILL_SWITCH_LIVE_OUTBOUND", "false").lower() == "true"
+actual_to = real_email if KILL_SWITCH_LIVE else OUTBOUND_SINK_EMAIL  # yohannesdereje1221@gmail.com
 ```
 
-### Segment Classification Rules (from `icp_definition.md`)
-Priority order — first match wins:
-1. Layoff in last 120 days AND fresh funding/large headcount → **segment_2**
-2. New CTO/VP Eng in last 90 days → **segment_3** (not detectable from current data)
-3. Specialized capability + AI maturity ≥ 2 → **segment_4**
-4. Fresh Series A/B funding → **segment_1**
-5. Otherwise → **abstain** (generic exploratory email)
-
-**Segment 4 hard gate:** `ai_maturity.score < 2` → always override to abstain (Python enforced).
-**Low confidence gate:** `segment_confidence < 0.6` → always override to abstain (Python enforced).
-
----
-
-## 6. File Inventory
-
-### Existing and working
-```
-agent/
-  __init__.py
-  agent_core.py              ← Group E (compose_outreach)
-  requirements.txt
-  enrichment/
-    __init__.py
-    crunchbase_enricher.py   ← Group C (enrich)
-    layoffs_enricher.py      ← Group C (check_layoffs)
-    job_post_scraper.py      ← Group D1 (scrape_job_postings)
-    ai_maturity_scorer.py    ← Group D2 (score_ai_maturity)
-    competitor_gap_builder.py← Group D3 (build_competitor_gap)
-    pipeline.py              ← Group D4+D5 (run_enrichment_pipeline)
-
-data/
-  layoffs_fyi.csv            ← 4,361 rows, 11 cols (Company, Date, # Laid Off, %, Source, ...)
-  crunchbase-companies-information.csv  ← 1,000 rows, 92 cols (name, uuid, website, industries, ...)
-  decode_json.py             ← Script that built layoffs_fyi.csv from raw Airtable response
-
-eval/
-  __init__.py
-
-infra/
-  docker-compose.yml         ← Cal.com + Postgres (not used — switched to Cal.com Cloud)
-
-scripts/
-  __init__.py
-
-tenacious_sales_data/
-  seed/
-    icp_definition.md        ← ICP segment definitions (used in agent system prompt)
-    style_guide.md           ← 5 tone markers (used in agent system prompt)
-    bench_summary.json       ← Engineering capacity (used in agent + pipeline)
-    email_sequences/
-      cold.md                ← 3-email sequence structure (used in agent system prompt E3)
-      warm.md
-      reengagement.md
-    baseline_numbers.md
-    case_studies.md
-    pricing_sheet.md
-    sales_deck_notes.md
-    discovery_transcripts/   ← 5 transcripts (context, not yet used in code)
-  schemas/
-    hiring_signal_brief.schema.json
-    competitor_gap_brief.schema.json
-    discovery_call_context_brief.md
-  policy/
-    data_handling_policy.md
-    acknowledgement.md
-
-.env                         ← All API keys (see Section 7)
-handover.md                  ← This file
-hiring_signal_brief.json     ← Sample output from D5 smoke test (Stripe)
-competitor_gap_brief.json    ← Sample output from D5 smoke test (Stripe)
-todos.md                     ← Full task list (Groups A–J)
+### JSON Parsing (Qwen3 emits `<think>...</think>` blocks)
+```python
+if "<think>" in text and "</think>" in text:
+    text = text[text.rfind("</think>") + len("</think>"):].strip()
 ```
 
-### Not yet created (F–J)
+### Python Word Limit Enforcement (business rule — NEVER delegated to LLM)
+```python
+def _enforce_word_limit(body: str, max_words: int) -> tuple[str, bool]:
+    words = body.split()
+    if len(words) <= max_words: return body, False
+    return " ".join(words[:max_words]), True
+# Email 1: 120 words. Email 2: 100 words. Email 3: 70 words.
+# Engaged reply: 150. Curious: 90. Soft defer: 60. Objection: 120.
 ```
-agent/
-  main.py                    ← Group G (FastAPI app)
-  email_handler.py           ← Group F1
-  sms_handler.py             ← Group F2
-  hubspot_handler.py         ← Group F3
-  calcom_handler.py          ← Group F4
 
-eval/
-  tau2_bench_runner.py       ← Group H2
-  score_log.json             ← Group H3 (generated by runner)
-  trace_log.jsonl            ← Group H4 (generated by runner)
+### How to Run the Server
+```bash
+cd "c:\Users\Yohannes\Desktop\tenx education\Weeks\week 10\The conversion Engine"
+uvicorn agent.main:app --reload --port 8001
+# (use 8001 if 8000 is occupied — check with: netstat -ano | findstr :8000)
+```
 
-scripts/
-  generate_synthetic_interactions.py  ← Group G3
+### How to Test /leads/process (Bash)
+```bash
+curl -X POST http://127.0.0.1:8001/leads/process \
+  -H "Content-Type: application/json" \
+  -d '{"company_name":"Notion","contact_email":"test@sink.com","contact_name":"Test User"}'
+```
 
-baseline.md                  ← Group I1
-README.md                    ← Group I2
-.gitignore                   ← Group I3
-interim_report.md            ← Group J1
+### How to Test /email/webhook (simulate engaged reply)
+```bash
+curl -X POST http://127.0.0.1:8001/email/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"type":"email.reply","data":{"from":"test@sink.com","text":"Interesting context on the hiring. What exactly does your engineering team look like?","subject":"Re: Context: Notion hiring velocity"}}'
+```
+
+### How to Test Hard No
+```bash
+curl -X POST http://127.0.0.1:8001/email/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"type":"email.reply","data":{"from":"test@sink.com","text":"Please remove me from your list. Not interested.","subject":"Re: something"}}'
 ```
 
 ---
 
-## 7. Full .env Contents (current, confirmed working)
+## 9. .env Variables (confirmed working — do not commit)
 
 ```env
 KILL_SWITCH_LIVE_OUTBOUND=false
-OUTBOUND_SINK_EMAIL=staff-sink@program.com
+OUTBOUND_SINK_EMAIL=yohannesdereje1221@gmail.com
 OUTBOUND_SINK_SMS=+10000000000
 
-OPENROUTER_API_KEY=sk-or-REDACTED
+OPENROUTER_API_KEY=sk-or-<REDACTED>
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 DEV_MODEL=qwen/qwen3-235b-a22b
 DEV_MODEL_TEMPERATURE=0.0
 
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-EVAL_MODEL=claude-sonnet-4-6
-EVAL_MODEL_TEMPERATURE=0.0
-
-LANGFUSE_PUBLIC_KEY=pk-lf-REDACTED
-LANGFUSE_SECRET_KEY=sk-lf-REDACTED
+LANGFUSE_PUBLIC_KEY=pk-lf-<REDACTED>
+LANGFUSE_SECRET_KEY=sk-lf-<REDACTED>
 LANGFUSE_HOST=https://cloud.langfuse.com
-LANGFUSE_PROJECT=conversion-engine
 
-HUBSPOT_ACCESS_TOKEN=pat-REDACTED
+HUBSPOT_ACCESS_TOKEN=pat-<REDACTED>
 HUBSPOT_PORTAL_ID=148328985
 
-RESEND_API_KEY=re_REDACTED
+RESEND_API_KEY=re_<REDACTED>
 RESEND_FROM_EMAIL=onboarding@resend.dev
-RESEND_REPLY_WEBHOOK_SECRET=your_webhook_secret_here
 
-AFRICAS_TALKING_API_KEY=atsk_REDACTED
+AFRICAS_TALKING_API_KEY=atsk_<REDACTED>
 AFRICAS_TALKING_USERNAME=sandbox
 AFRICAS_TALKING_SHORTCODE=1217
-AFRICAS_TALKING_WEBHOOK_URL=https://amendment-evergreen-abrasive.ngrok-free.dev/sms/webhook
 
-CALCOM_API_KEY=cal_REDACTED
+CALCOM_API_KEY=cal_live_<REDACTED>
 CALCOM_BASE_URL=https://api.cal.com
 CALCOM_EVENT_TYPE_ID=5467186
 CALCOM_SDR_EMAIL=sdr@tenacious.com
 
-CRUNCHBASE_DATA_PATH=./data/crunchbase_odm_sample.csv
+SERPAPI_API_KEY=<REDACTED>
+
+CRUNCHBASE_DATA_PATH=./data/crunchbase-companies-information.csv
 LAYOFFS_DATA_PATH=./data/layoffs_fyi.csv
-
-TAU2_BENCH_MODEL=qwen/qwen3-235b-a22b
-TAU2_BENCH_TEMPERATURE=0.0
-TAU2_BENCH_DOMAIN=retail
-TAU2_BENCH_DEV_SLICE_SIZE=30
-TAU2_BENCH_HELD_OUT_SLICE_SIZE=20
-TAU2_BENCH_TRIALS=5
-
-APP_ENV=development
-LOG_LEVEL=INFO
-TRACE_OUTPUT_PATH=./eval/trace_log.jsonl
-SCORE_LOG_PATH=./eval/score_log.json
 ```
 
 ---
 
-## 8. Known Issues and Gotchas
+## 10. Known Issues and Gotchas
 
-### Issue 1: layoffs_enricher.py has a latent bug (line 46)
+### PowerShell curl quote stripping
+PowerShell strips double quotes from `-d` arguments. Use Bash via Monitor tool for curl,
+or use PowerShell's `Invoke-RestMethod`:
+```powershell
+$body = '{"company_name":"Stripe","contact_email":"test@sink.com","contact_name":"Test User"}'
+Invoke-RestMethod -Uri "http://127.0.0.1:8001/leads/process" -Method POST -ContentType "application/json" -Body $body
+```
+
+### Port 8000 occupied on Windows
+```bash
+netstat -ano | findstr :8000  # find PID
+taskkill /PID <pid> /F
+```
+Or just use `--port 8001`.
+
+### Crunchbase CSV is a 1,000-row sample
+Well-known companies (Stripe, OpenAI, Shopify) return `{error: "Company not found"}`.
+This is expected — pipeline continues using LLM knowledge for segment classification.
+
+### HubSpot property writes silently ignored if property doesn't exist
+All 8 custom properties must be created in HubSpot portal BEFORE they show up on contacts.
+Already created (confirmed working in previous session).
+
+### Cal.com CALCOM_EVENT_TYPE_ID = 5467186
+This is the specific event type ID for the "Discovery Call" event. Must match what's in Cal.com dashboard under Event Types.
+
+### SerpAPI has monthly query limits
+The free tier has 100 searches/month. The scraper only calls SerpAPI as a fallback when
+Playwright finds nothing. Should not be an issue for testing.
+
+### Qwen3 thinking mode
+Qwen3-235B emits `<think>...</think>` blocks before JSON in responses.
+Every file that parses Qwen3 output must strip these:
 ```python
-if company_rows.empty:
-    company_rows = df.iloc[[idx]]  # BUG: `idx` is not defined in this scope
+if "<think>" in text and "</think>" in text:
+    text = text[text.rfind("</think>") + len("</think>"):].strip()
 ```
-This line never runs in practice (fuzzy match finds exact name rows), but it will crash if
-triggered. Safe to ignore for now; fix by removing the `if company_rows.empty:` block entirely.
-
-### Issue 2: Crunchbase CSV is a random sample of small companies
-The 1,000-row CSV (`crunchbase-companies-information.csv`) does not contain Stripe, OpenAI,
-Shopify, or other well-known companies. Fuzzy match returns `match_score ~65-75` which is
-below the 85 threshold. This is expected behaviour — the enrichment pipeline still works
-because the AI maturity scorer and competitor gap builder operate from the LLM's knowledge.
-
-### Issue 3: Cal.com is Cloud, not self-hosted
-The `infra/docker-compose.yml` exists for a self-hosted Cal.com attempt that was abandoned.
-The working setup uses `CALCOM_BASE_URL=https://api.cal.com` (Cal.com Cloud free tier).
-The API key format is `cal_live_...`. Use API v2 (`/v2/slots`, `/v2/bookings`).
-API v1 is decommissioned on Cal.com Cloud.
-
-### Issue 4: Playwright must be installed for job scraper
-If `playwright install chromium` has not been run, the job scraper will fail (returning
-`{"status": "error", ...}`). The pipeline handles this gracefully. Run:
-`python -m playwright install chromium`
-
-### Issue 5: Windows console encoding
-The project runs on Windows. Use ASCII characters (not →, ✓, etc.) in print statements
-inside Python scripts or they will crash with `UnicodeEncodeError` in CP1252 terminal.
-
-### Issue 6: Langfuse credentials are real and in .env
-`LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are the real keys for `cloud.langfuse.com`.
-Traces appear in real-time at `https://cloud.langfuse.com` — confirm this is the expected
-account before running large-scale tests.
+This is already implemented in: `agent_core.py` (`_parse_json`), `tone_probe.py`,
+`reply_classifier.py`, `reply_composer.py`, `context_brief_composer.py`.
 
 ---
 
-## 9. Key Design Decisions (for report writing)
+## 11. Recommended Order for Remaining Time
 
-1. **OpenRouter not Anthropic for dev:** Cost target < $4 for Days 1–4. Qwen3-235B-A22B
-   gives strong JSON compliance at $0 effective cost via OpenRouter's free tier.
+### If you have 4–6 hours:
+1. P3-G1 — `send_scheduling_sms()` in sms_handler.py (~20 min)
+2. P3-L1 — Smoke test (run the 5 tests in todos.md, fix any failures) (~40 min)
+3. P4-A — Create `probes/` directory (~5 min)
+4. P4-B1-B10 — Write `probes/probe_library.md` (30+ entries) (~60 min)
+5. P4-C — Run the probes against live API, fill in Observed/Pass-Fail (~30 min)
+6. P4-D — Write `probes/failure_taxonomy.md` (~20 min)
+7. P4-E — Write `probes/target_failure_mode.md` (~15 min)
+8. P4-F — Write `probes/method.md` Sections 1–6 (~30 min)
+9. P5-A — Identify mechanism (the bench-gated commitment policy or tone probe are already built) (~10 min)
+10. P5-B/C — Run τ²-Bench dev sweep with mechanism ON/OFF (~30 min, results go to score_log.json)
+11. P5-D/E — Sealed held-out runs (use eval/held_out_runner.py or tau2_bench_runner.py) (~30 min)
+12. P5-F/G — Delta A calculation, ablation_results.json (~15 min)
+13. P5-J/K — evidence_graph.json, method.md Sections 7–9 (~20 min)
+14. P6-A — Write memo.pdf (exactly 2 pages, ~750 words) (~60 min)
+15. P6-B/C — Finalize evidence_graph.json, update README.md (~20 min)
+16. P6-D — Record 8-minute demo video (~20 min)
+17. P6-E — `git init`, add .gitignore, commit, push to GitHub (~15 min)
 
-2. **Langfuse for observability:** Every LLM call emits a trace. Required for grading
-   (τ²-Bench traces + enrichment pipeline traces must appear in Langfuse).
-
-3. **Kill switch routes to sink, not skip:** Even with kill switch off, all outbound sends
-   a real email/SMS — just to the staff sink address. This proves the send path works
-   without emailing real prospects.
-
-4. **JSON schema validation on both briefs:** `jsonschema.validate()` is called on every
-   pipeline output. Validation errors are traced but do not raise — the pipeline returns
-   whatever it built, and the calling code decides whether to proceed.
-
-5. **Bench check in two places:** The pipeline infers tech stack from job titles and checks
-   it at enrichment time (`bench_to_brief_match` in HSB). The agent core does a second check
-   against the LLM's `required_skills`. Both must pass for `bench_match_result.match = True`.
-
-6. **Segment 4 hard gate:** The ICP definition requires AI maturity ≥ 2 for Segment 4.
-   This is enforced in Python in `agent_core.py` after the LLM call — the LLM cannot
-   override it.
-
----
-
-## 10. Recommended Order for Remaining Time
-
-Given ~48 hours to deadline, prioritise in this order:
-
-1. **F1 (email_handler.py)** — required for G2 end-to-end test
-2. **F3 (hubspot_handler.py)** — required for G2 end-to-end test
-3. **G1 (main.py FastAPI)** — required for G2 end-to-end test
-4. **G2 (end-to-end test)** — required for interim report credibility
-5. **F4 (calcom_handler.py)** — book slot is required for the full sales flow
-6. **F2 (sms_handler.py)** — secondary channel, simpler than email
-7. **G3 (synthetic interactions)** — generates p50/p95 latency numbers for report
-8. **H (τ²-Bench harness)** — requires knowing where tau2-bench is cloned on the machine
-9. **I1–I4 (docs + git push)** — must push to GitHub before deadline
-10. **J (PDF report)** — final step
-
-**Minimum viable submission:** G2 working end-to-end + at least one run of τ²-Bench + README + git push.
+### If you have fewer than 4 hours:
+Focus on: P4 (probe library + documents) → P5-A/B (just one baseline + mechanism ON run)
+→ P6-A (memo) → P6-E (push). Skip the video if needed — it's worth fewer points.
 
 ---
 
-*End of handover document.*
+*End of handover. Good luck — deadline is tonight at 21:00 UTC.*

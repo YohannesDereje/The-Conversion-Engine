@@ -18,6 +18,7 @@ requests
 
 # Web Scraping
 playwright
+google-search-results>=2.4.2
 
 # API Clients
 resend

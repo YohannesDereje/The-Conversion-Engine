@@ -113,6 +113,76 @@ async def send_sms(
     return result
 
 
+# ── scheduling SMS ───────────────────────────────────────────────────────────
+
+async def send_scheduling_sms(
+    to: str,
+    contact_name: str,
+    slot_datetime: str,
+    cal_link: str,
+    trace_id: str,
+) -> dict:
+    """
+    Send a slot-confirmation SMS to a warm lead after an email reply.
+
+    Template (strict, no variation, must remain under 160 chars):
+        "Hi {Name} — Elena at Tenacious. Per our email thread: {slot}?
+         Cal confirms at: {cal_link}. Reply N if slot no longer works."
+
+    Only fires for warm leads who have already replied (engaged/curious class)
+    and have no confirmed Cal.com booking yet.
+
+    Args:
+        to:            recipient phone number
+        contact_name:  prospect first name (used in greeting)
+        slot_datetime: human-readable slot string, e.g. "Mon Apr 28 @ 3 pm EAT"
+        cal_link:      Cal.com booking link
+        trace_id:      Langfuse trace ID
+
+    Returns:
+        send_sms() result dict plus char_count.
+
+    Raises:
+        ValueError: if rendered message exceeds 160 characters.
+    """
+    first_name = contact_name.strip().split()[0] if contact_name.strip() else contact_name
+    message = (
+        f"Hi {first_name} — Elena at Tenacious. "
+        f"Per our email thread: {slot_datetime}? "
+        f"Cal confirms at: {cal_link}. "
+        f"Reply N if slot no longer works."
+    )
+    char_count = len(message)
+    if char_count > 160:
+        raise ValueError(
+            f"send_scheduling_sms: message is {char_count} chars (max 160). "
+            f"Shorten slot_datetime or cal_link."
+        )
+
+    result = await send_sms(
+        to=to,
+        message=message,
+        trace_id=trace_id,
+        is_warm_lead=True,
+    )
+    result["char_count"] = char_count
+
+    emit_span(
+        trace_id=trace_id,
+        name="sms_handler.send_scheduling_sms",
+        input={
+            "to": to,
+            "contact_name": contact_name,
+            "slot_datetime": slot_datetime,
+            "cal_link": cal_link,
+            "char_count": char_count,
+        },
+        output=result,
+        latency_ms=0.0,
+    )
+    return result
+
+
 # ── inbound webhook ───────────────────────────────────────────────────────────
 
 def handle_inbound_webhook(payload: dict) -> dict:

@@ -36,6 +36,22 @@ CALCOM_BASE_URL = os.getenv("CALCOM_BASE_URL", "https://api.cal.com").rstrip("/"
 CALCOM_EVENT_TYPE_ID = int(os.getenv("CALCOM_EVENT_TYPE_ID", "0") or "0")
 CALCOM_SDR_EMAIL = os.getenv("CALCOM_SDR_EMAIL", "sdr@tenacious.com")
 
+# ── OpenRouter pricing (used to compute cost_usd in Langfuse spans) ───────────
+OPENROUTER_PRICES: dict[str, dict[str, float]] = {
+    "qwen/qwen3-235b-a22b": {"input_per_1k": 0.0014, "output_per_1k": 0.0014},
+    "qwen/qwen3-30b-a3b": {"input_per_1k": 0.0001, "output_per_1k": 0.0001},
+}
+
+
+def compute_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Return cost in USD for a given model and token counts. Returns 0.0 if model unknown."""
+    pricing = OPENROUTER_PRICES.get(model)
+    if not pricing:
+        return 0.0
+    return (input_tokens / 1000) * pricing["input_per_1k"] + \
+           (output_tokens / 1000) * pricing["output_per_1k"]
+
+
 # ── Langfuse ──────────────────────────────────────────────────────────────────
 LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
@@ -88,12 +104,25 @@ def emit_span(
 ) -> None:
     """
     Emit a Langfuse span attached to an existing trace_id.
+
+    Cost attribution: if metadata contains 'model', 'input_tokens', and
+    'output_tokens', cost_usd is computed automatically and added to the span.
+
     Swallows all errors — tracing must never break business logic.
     """
     if not trace_id:
         return
     lf = get_langfuse()
     try:
+        meta = {"latency_ms": round(latency_ms, 2), **(metadata or {})}
+
+        # Compute cost_usd when token usage is provided
+        model = meta.get("model", "")
+        input_tokens = int(meta.get("input_tokens", 0) or 0)
+        output_tokens = int(meta.get("output_tokens", 0) or 0)
+        if model and (input_tokens or output_tokens):
+            meta["cost_usd"] = round(compute_cost_usd(model, input_tokens, output_tokens), 6)
+
         from langfuse.types import TraceContext
         tc = TraceContext(trace_id=trace_id, name=name)
         obs = lf.start_observation(
@@ -101,7 +130,7 @@ def emit_span(
             name=name,
             as_type="span",
             input=input,
-            metadata={"latency_ms": round(latency_ms, 2), **(metadata or {})},
+            metadata=meta,
         )
         obs.update(output=output)
         obs.end()

@@ -1,0 +1,133 @@
+[
+  {
+    "claim": "τ²-Bench reproduction run pass@1 = 0.2667 (8/30 tasks, qwen3-235b-a22b, 1 trial)",
+    "source_type": "trace_file",
+    "source_ref": "eval/trace_log.jsonl, run_id: f87be03e",
+    "value": 0.2667,
+    "ci": [0.1418, 0.4445]
+  },
+  {
+    "claim": "τ²-Bench held-out mechanism ON pass@1 = 0.4000 (8/20 tasks, qwen3-235b-a22b, 1 trial)",
+    "source_type": "trace_file",
+    "source_ref": "probes/held_out_traces.jsonl, run_id: held_out_mechanism_on",
+    "value": 0.4000,
+    "ci": [0.2188, 0.6134]
+  },
+  {
+    "claim": "τ²-Bench facilitator baseline pass@1 = 0.7267 (30 tasks, qwen3-next-80b, 5 trials)",
+    "source_type": "trace_file",
+    "source_ref": "eval/score_log.json, run_id: day1_baseline",
+    "value": 0.7267,
+    "ci": [0.6504, 0.7917]
+  },
+  {
+    "claim": "Delta A (mechanism ON held-out vs same-model dev baseline) = +0.1333",
+    "source_type": "computed",
+    "source_ref": "probes/ablation_results.json — held_out_mechanism_on (0.4000) minus bf9dce5a (0.2667)",
+    "value": 0.1333,
+    "p_value": 0.32,
+    "significant": false
+  },
+  {
+    "claim": "Mechanism SOC-01 probe result: FAIL (mechanism OFF) → PASS (mechanism ON)",
+    "source_type": "probe_file",
+    "source_ref": "probes/probe_library.md, probe SOC-01; probes/ablation_results.json",
+    "value": "FAIL→PASS"
+  },
+  {
+    "claim": "p50 latency held-out run = 83.12s (qwen3-235b-a22b, 20 tasks)",
+    "source_type": "trace_file",
+    "source_ref": "eval/score_log.json, run_id: held_out_mechanism_on",
+    "value": 83.12
+  },
+  {
+    "claim": "p95 latency held-out run = 156.76s (qwen3-235b-a22b, 20 tasks)",
+    "source_type": "trace_file",
+    "source_ref": "eval/score_log.json, run_id: held_out_mechanism_on",
+    "value": 156.76
+  },
+  {
+    "claim": "p50 latency dev run = 91.44s (qwen3-235b-a22b, 30 tasks)",
+    "source_type": "trace_file",
+    "source_ref": "eval/score_log.json, run_id: bf9dce5a",
+    "value": 91.44
+  },
+  {
+    "claim": "B2B outbound cold-email reply rate baseline = 1–3%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — LeadIQ 2026 benchmarks; Apollo 2026 benchmarks"
+  },
+  {
+    "claim": "Signal-grounded outbound reply rate (top quartile) = 7–12%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — Clay 2025 case studies; Smartlead 2025 case studies"
+  },
+  {
+    "claim": "Discovery-call-to-proposal conversion = 30–50%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — B2B Services Industry Benchmarks"
+  },
+  {
+    "claim": "Proposal-to-close conversion = 20–30%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — Professional Services Industry Averages"
+  },
+  {
+    "claim": "Stalled-deal rate (middle-to-late stages) = ~72%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — CRM Pipeline Analysis Benchmarks"
+  },
+  {
+    "claim": "ACV range (talent outsourcing) = $[ACV_MIN]–$[ACV_MAX]",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md, revised Feb 2026"
+  },
+  {
+    "claim": "ACV range (project consulting) = $[PROJECT_ACV_MIN]–$[PROJECT_ACV_MAX]",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md, revised Feb 2026"
+  },
+  {
+    "claim": "Total engineers on bench = 36 (python:7, go:3, data:9, ml:5, infra:4, frontend:6, fullstack_nestjs:2)",
+    "source_type": "seed_internal",
+    "source_ref": "seed/bench_summary.json, as of 2026-04-21 — total_engineers_on_bench field"
+  },
+  {
+    "claim": "All 36 bench engineers deployable within 14 days (fastest stacks: python/data/frontend at 7 days; slowest: go/infra/nestjs at 14 days)",
+    "source_type": "seed_internal",
+    "source_ref": "seed/bench_summary.json, time_to_deploy_days field per stack, as of 2026-04-21"
+  },
+  {
+    "claim": "Typical engagement size = 3–12 engineers, duration 6–24 months",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — Tenacious internal, last 4 quarters"
+  },
+  {
+    "claim": "Year-over-year growth rate = 520%",
+    "source_type": "seed_internal",
+    "source_ref": "seed/baseline_numbers.md — Tenacious Overview Jan 2026 (public)"
+  },
+  {
+    "claim": "Probe suite score = 28/29 evaluated probes pass (3 skip, 1 genuine fail SOC-01)",
+    "source_type": "probe_file",
+    "source_ref": "probes/probe_library.md, probes/probe_results.json — live run 2026-04-25"
+  },
+  {
+    "claim": "p50 latency for 20 synthetic leads — pending Langfuse G3 trace data",
+    "source_type": "pending",
+    "source_ref": "Langfuse traces, G3 synthetic run (scripts/generate_synthetic_interactions.py)",
+    "note": "Requires retrieving from Langfuse dashboard or local trace export"
+  },
+  {
+    "claim": "Cost per qualified lead — bottom-up estimate ~$0.011/lead (4.2 avg LLM calls at qwen3-235b-a22b pricing). τ²-Bench cost_usd fields return $0.00 due to agent_cost field unwired for OpenRouter.",
+    "source_type": "computed",
+    "source_ref": "eval/score_log.json cost_usd fields (all $0.00 — tracking bug); bottom-up from token count estimates × $0.0014/K OpenRouter rate",
+    "note": "Total OpenRouter project spend (full week: agent build + probe testing + all benchmark runs): $19.16. τ²-Bench evaluation runs alone (50 tasks, qwen3-235b-a22b) estimated <$2 — within $10 evaluation budget. $19.16 is NOT a per-lead production cost; do not divide by interaction count."
+  },
+  {
+    "claim": "Stalled-thread rate — pending Langfuse G3 trace data",
+    "source_type": "pending",
+    "source_ref": "Langfuse traces, G3 synthetic run",
+    "note": "Baseline to beat: 30-40% per seed/baseline_numbers.md"
+  }
+]

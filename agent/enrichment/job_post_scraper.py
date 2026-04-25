@@ -1,11 +1,44 @@
-"""Playwright-based job posting scraper with graceful fallback."""
+"""Playwright-based job posting scraper with SerpAPI fallback."""
+import asyncio
+import os
 import re
+import time
 from datetime import datetime, timezone
+from urllib.robotparser import RobotFileParser
+
+import httpx
+
+# Rule 4: user agent must identify the program
+_USER_AGENT = "TRP1-Week10-Research (trainee@trp1.example)"
 
 
-async def scrape_job_postings(company_domain: str) -> dict:
+async def _robots_allows(domain: str, path: str) -> bool:
+    """Return True if robots.txt permits _USER_AGENT to fetch the given path.
+
+    Fails open (returns True) if robots.txt is unreachable — conservative but
+    preferable to silently skipping valid targets.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5, follow_redirects=True) as client:
+            r = await client.get(
+                f"https://{domain}/robots.txt",
+                headers={"User-Agent": _USER_AGENT},
+            )
+        rp = RobotFileParser()
+        rp.parse(r.text.splitlines())
+        return rp.can_fetch(_USER_AGENT, f"https://{domain}{path}")
+    except Exception:
+        return True
+
+
+async def scrape_job_postings(
+    company_domain: str,
+    company_name: str = "",
+    trace_id: str = "",
+) -> dict:
     """
     Scrape open job postings for a company domain.
+    Fallback chain: Playwright → SerpAPI → no_data.
     Returns: open_roles_today, role_titles, sources, status, scraped_at.
     Always returns a valid dict — never raises.
     """
@@ -28,13 +61,7 @@ async def scrape_job_postings(company_domain: str) -> dict:
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
-            ctx = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-            )
+            ctx = await browser.new_context(user_agent=_USER_AGENT)
 
             wf_titles = await _scrape_wellfound(ctx, slug)
             if wf_titles:
@@ -52,12 +79,71 @@ async def scrape_job_postings(company_domain: str) -> dict:
 
     except Exception:
         result["status"] = "error"
-        return result
 
     result["role_titles"] = _dedupe(result["role_titles"])[:30]
     result["open_roles_today"] = len(result["role_titles"])
-    result["status"] = "success" if result["open_roles_today"] > 0 else "no_data"
+
+    if result["open_roles_today"] > 0:
+        result["status"] = "success"
+        return result
+
+    # P3-A1: SerpAPI fallback when Playwright returns no_data
+    query = company_name or slug
+    serpapi_titles = await _serpapi_search_jobs(query, trace_id)
+    if serpapi_titles:
+        result["role_titles"] = serpapi_titles
+        result["open_roles_today"] = len(serpapi_titles)
+        result["sources"] = ["serpapi"]
+        result["status"] = "partial"
+    # else status stays "no_data"
     return result
+
+
+async def _serpapi_search_jobs(company_name: str, trace_id: str = "") -> list:
+    """SerpAPI Google Jobs fallback. Rule 4: 2-second delay before call."""
+    api_key = os.getenv("SERPAPI_API_KEY", "")
+    if not api_key or not company_name:
+        return []
+
+    await asyncio.sleep(2)  # Rule 4: 2-second inter-request delay
+
+    t0 = time.monotonic()
+    titles: list = []
+    status = "no_data"
+    try:
+        from serpapi import GoogleSearch  # google-search-results package
+
+        params = {
+            "engine": "google_jobs",
+            "q": f"{company_name} jobs",
+            "api_key": api_key,
+        }
+        search = GoogleSearch(params)
+        data = search.get_dict()
+        for job in (data.get("jobs_results") or [])[:30]:
+            title = (job.get("title") or "").strip()
+            if _is_job_title(title):
+                titles.append(title)
+        titles = _dedupe(titles)[:20]
+        status = "success" if titles else "no_data"
+    except Exception:
+        status = "error"
+
+    latency_ms = (time.monotonic() - t0) * 1000
+    if trace_id:
+        try:
+            from agent.utils import emit_span
+            emit_span(
+                trace_id=trace_id,
+                name="job_scraper_serpapi",
+                input={"company_name": company_name, "source": "serpapi"},
+                output={"status": status, "roles_found": len(titles)},
+                latency_ms=latency_ms,
+            )
+        except Exception:
+            pass
+
+    return titles
 
 
 def _domain_to_slug(domain: str) -> str:
@@ -66,6 +152,9 @@ def _domain_to_slug(domain: str) -> str:
 
 
 async def _scrape_wellfound(ctx, slug: str) -> list:
+    # P2-F: robots.txt check for wellfound.com before scraping
+    if not await _robots_allows("wellfound.com", f"/company/{slug}/jobs"):
+        return []
     try:
         page = await ctx.new_page()
         await page.goto(
@@ -97,7 +186,12 @@ async def _scrape_wellfound(ctx, slug: str) -> list:
 
 async def _scrape_careers_page(ctx, domain: str) -> list:
     for path in ["/careers", "/jobs", "/about/careers", "/work-with-us", "/open-roles"]:
+        # P2-F: check robots.txt before each path attempt
+        if not await _robots_allows(domain, path):
+            continue
         try:
+            # P2-E: Rule 4 — 2-second delay between requests to the same domain
+            await asyncio.sleep(2)
             page = await ctx.new_page()
             await page.goto(
                 f"https://{domain}{path}",

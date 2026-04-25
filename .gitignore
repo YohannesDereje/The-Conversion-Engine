@@ -16,14 +16,19 @@ env/
 # Proprietary client data and templates
 tenacious_sales_data/
 
-# Generated reports and documents
+# Generated PDF reports (memo.html is kept; memo.pdf and all other PDFs excluded)
 *.pdf
 *.docx
+
+# HTML files — exclude all except the memo deliverable
 *.html
+!memo.html
+!interim_report.html
 
 # Generated data files and logs
 hiring_signal_brief.json
 competitor_gap_brief.json
+*.log
 
 # Large data files
 data/*.csv
@@ -35,3 +40,12 @@ data/debug_*
 data/fetch_*
 data/scrape_*
 data/decode_*
+
+# Claude Code internal session files
+.claude/
+
+# Internal planning and handover notes (not graded deliverables)
+continued_handover.md
+handover.md
+continue.md
+todos.md

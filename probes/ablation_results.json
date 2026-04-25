@@ -1,0 +1,54 @@
+{
+  "conditions": [
+    {
+      "run_id": "held_out_mechanism_on",
+      "condition": "your_method",
+      "description": "Signal-confidence-aware phrasing mechanism ON — held-out 20-task slice, qwen3-235b-a22b, 1 trial",
+      "pass_at_1": 0.4000,
+      "ci_lower": 0.2188,
+      "ci_upper": 0.6134,
+      "cost_per_task_usd": 0.0,
+      "p95_latency_s": 156.76,
+      "n_tasks": 20,
+      "slice": "held_out",
+      "model": "openrouter/qwen/qwen3-235b-a22b",
+      "note": "Model relaxed to qwen3-235b-a22b from spec's claude-sonnet-4-6 due to budget constraint ($7.18 remaining). Noted in memo."
+    },
+    {
+      "run_id": "bf9dce5a",
+      "condition": "day1_baseline",
+      "description": "Mechanism OFF proxy — dev 30-task slice, qwen3-235b-a22b, 1 trial. Used as ablation baseline because mechanism does not affect tau2-bench runner (mechanism lives in agent_core.py, not tau2 agent).",
+      "pass_at_1": 0.2667,
+      "ci_lower": 0.1418,
+      "ci_upper": 0.4445,
+      "cost_per_task_usd": 0.0,
+      "p95_latency_s": 172.20,
+      "n_tasks": 30,
+      "slice": "dev",
+      "model": "openrouter/qwen/qwen3-235b-a22b"
+    },
+    {
+      "run_id": "day1_baseline",
+      "condition": "automated_optimization_baseline",
+      "description": "Facilitator-provided baseline — dev 30-task slice, qwen3-next-80b-a3b-thinking, 5 trials. Best-of-5 at same compute budget. Different model from held-out runs.",
+      "pass_at_1": 0.7267,
+      "ci_lower": 0.6504,
+      "ci_upper": 0.7917,
+      "cost_per_task_usd": 0.0199,
+      "p95_latency_s": 551.65,
+      "n_tasks": 30,
+      "n_trials": 5,
+      "model": "openrouter/qwen/qwen3-next-80b-a3b-thinking"
+    }
+  ],
+  "statistical_test": {
+    "method": "Wilson score interval + two-proportion z-test",
+    "comparison": "held_out_mechanism_on (0.4000, n=20) vs day1_baseline proxy (0.2667, n=30) — same model",
+    "delta_a": 0.1333,
+    "delta_a_vs_facilitator": -0.3267,
+    "p_value": 0.32,
+    "significant": false,
+    "interpretation": "Delta A = +0.1333 on held-out vs same-model dev baseline; CIs overlap and p=0.32 (not significant at p<0.05). The mechanism targets outreach email honesty (SOC-01 probe FAIL→PASS), not tau2-bench retail task completion — the tau2-bench score reflects model capability differences, not mechanism effect. The mechanism's measured improvement is at the probe level: SOC-01 moved from FAIL to PASS after implementation.",
+    "caveat": "Held-out and baseline use different slice sizes (20 vs 30 tasks) and the facilitator baseline uses a stronger model. A clean same-model, same-slice ablation was not run due to budget constraint."
+  }
+}

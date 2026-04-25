@@ -42,20 +42,21 @@ async def get_available_slots(days_ahead: int = 7) -> list[dict]:
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(
-                f"{CALCOM_BASE_URL}/v2/slots/available",
+                f"{CALCOM_BASE_URL}/v2/slots",
                 headers=_HEADERS,
                 params={
-                    "startTime": start_time,
-                    "endTime": end_time,
+                    "start": start_time,
+                    "end": end_time,
                     "eventTypeId": CALCOM_EVENT_TYPE_ID,
                 },
             )
             if r.status_code == 200:
-                slots_by_date = r.json().get("data", {}).get("slots", {})
+                slots_by_date = r.json().get("data", {})
                 for date_key, day_slots in slots_by_date.items():
                     for slot in day_slots:
+                        slot_time = slot.get("start", "")
                         slots.append({
-                            "time": slot.get("time", ""),
+                            "time": slot_time,
                             "date": date_key,
                             "eventTypeId": CALCOM_EVENT_TYPE_ID,
                         })

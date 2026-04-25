@@ -1,6 +1,6 @@
 [
   {
-    "run_id": "baseline",
+    "run_id": "day1_baseline",
     "model": "openrouter/qwen/qwen3-next-80b-a3b-thinking",
     "domain": "retail",
     "slice": "dev",
@@ -14,7 +14,8 @@
     "wall_clock_p50_s": 105.9521,
     "wall_clock_p95_s": 551.6491,
     "timestamp": "2026-04-22T00:00:00Z",
-    "note": "facilitator-provided baseline"
+    "condition": "mechanism_off",
+    "note": "facilitator-provided baseline \u2014 mechanism OFF (pre-implementation)"
   },
   {
     "run_id": "f87be03e",
@@ -31,5 +32,39 @@
     "wall_clock_p50_s": 97.1959,
     "wall_clock_p95_s": 245.8876,
     "timestamp": "2026-04-23T19:38:01.240510+00:00"
+  },
+  {
+    "run_id": "bf9dce5a",
+    "model": "openrouter/qwen/qwen3-235b-a22b",
+    "domain": "retail",
+    "slice": "dev",
+    "n_tasks": 30,
+    "n_trials": 1,
+    "pass_at_1_mean": 0.2667,
+    "ci_lower": 0.1418,
+    "ci_upper": 0.4445,
+    "cost_usd": 0.0,
+    "avg_cost_per_task": 0.0,
+    "wall_clock_p50_s": 91.4447,
+    "wall_clock_p95_s": 172.2011,
+    "timestamp": "2026-04-25T15:22:55.438433+00:00"
+  },
+  {
+    "run_id": "held_out_mechanism_on",
+    "condition": "mechanism_on",
+    "model": "openrouter/qwen/qwen3-235b-a22b",
+    "domain": "retail",
+    "slice": "held_out",
+    "n_tasks": 20,
+    "n_trials": 1,
+    "pass_at_1_mean": 0.4,
+    "ci_lower": 0.2188,
+    "ci_upper": 0.6134,
+    "cost_usd": 0.0,
+    "avg_cost_per_task": 0.0,
+    "wall_clock_p50_s": 83.1196,
+    "wall_clock_p95_s": 156.7637,
+    "timestamp": "2026-04-25T16:39:17.010083+00:00",
+    "note": "held-out sealed evaluation; model relaxed to qwen3-235b-a22b due to budget constraint"
   }
 ]

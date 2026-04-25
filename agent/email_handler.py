@@ -74,6 +74,7 @@ async def send_email(
         "to": [actual_to],
         "subject": subject,
         "text": body,
+        "headers": {"X-Tenacious-Status": "draft"},
     }
 
     email_id = "unknown"

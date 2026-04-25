@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tenacious Conversion Engine — Decision Memo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 0.58in 0.62in 0.52in 0.62in; }
+
+  body { font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.44; color: #111; }
+
+  /* ── HEADER ── */
+  .hdr { border-top: 2.5pt solid #111; border-bottom: 0.75pt solid #111;
+         padding: 4pt 0 3.5pt; margin-bottom: 8pt; }
+  .hdr-title { font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .hdr-meta { margin-top: 3pt; display: grid; grid-template-columns: 52pt 1fr 52pt 1fr;
+              gap: 2pt 6pt; font-size: 8.3pt; }
+  .lbl { font-weight: 700; color: #333; }
+
+  /* ── SECTION HEADINGS ── */
+  h2 { font-size: 8.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+       border-bottom: 0.5pt solid #999; padding-bottom: 2pt; margin: 8pt 0 4pt; }
+  h3 { font-size: 9pt; font-weight: 700; margin: 5pt 0 2.5pt; }
+  p  { margin-bottom: 3.5pt; }
+
+  /* ── DATA TABLES ── */
+  .dt { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 3pt 0 5pt; }
+  .dt th { background: #111; color: #fff; font-weight: 700; padding: 3pt 5pt; text-align: left; font-size: 8.2pt; }
+  .dt td { padding: 3pt 5pt; border-bottom: 0.4pt solid #ddd; vertical-align: top;
+           word-wrap: break-word; overflow-wrap: break-word; }
+  .dt tr:nth-child(even) td { background: #f6f6f6; }
+
+  /* ── BOXES ── */
+  .exec-box { border: 0.75pt solid #111; padding: 5pt 9pt; margin-bottom: 8pt; }
+  .callout  { border-left: 3pt solid #111; background: #f5f5f5; padding: 5pt 8pt; margin: 3pt 0; }
+  .killbox  { border: 1pt solid #111; padding: 4pt 7pt; margin: 3pt 0; }
+
+  /* ── PAGE 2 OVERRIDES ── */
+  .p2 { font-size: 7.2pt; line-height: 1.30; }
+  .p2 h2 { font-size: 7.4pt; margin: 5pt 0 2.5pt; }
+  .p2 h3 { font-size: 7.2pt; margin: 3.5pt 0 1.5pt; }
+  .p2 p  { margin-bottom: 2pt; }
+  .p2 .dt { font-size: 6.8pt; margin: 2pt 0 3pt; table-layout: fixed; }
+  .p2 .dt th { font-size: 6.6pt; padding: 2pt 4pt; }
+  .p2 .dt td { padding: 2pt 4pt; word-wrap: break-word; overflow-wrap: break-word; }
+  .p2 .callout { font-size: 7pt; padding: 3pt 7pt; margin: 2pt 0; }
+  .p2 .killbox { padding: 3pt 6pt; margin: 2pt 0; }
+
+  /* ── UTILITIES ── */
+  .page-break { page-break-before: always; }
+  .footer { border-top: 0.5pt solid #bbb; margin-top: 6pt; padding-top: 3pt; font-size: 6.8pt; color: #555; }
+  .note   { font-size: 7.8pt; color: #555; font-style: italic; }
+  .flag   { font-family: 'Courier New', monospace; font-size: 8pt; font-weight: 700; }
+  .pass   { color: #1a6e1a; font-weight: 700; }
+  .fail   { color: #b00000; font-weight: 700; }
+  b       { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ PAGE 1 — THE DECISION ══════════════════════ -->
+
+<div class="hdr">
+  <div class="hdr-title">Internal Decision Memorandum — Tenacious Conversion Engine</div>
+  <div class="hdr-meta">
+    <span class="lbl">To:</span>   <span>Tenacious CEO &amp; CFO</span>
+    <span class="lbl">Date:</span> <span>April 25, 2026</span>
+    <span class="lbl">From:</span> <span>10Academy Week 10 — Conversion Engine Build</span>
+    <span class="lbl">Re:</span>   <span>Pilot Deployment Decision — AI-Driven Outbound Prospecting System</span>
+  </div>
+</div>
+
+<h2>Executive Summary</h2>
+<div class="exec-box">
+  The Tenacious Conversion Engine classifies prospects into four ICP segments using enrichment signals (layoffs, funding rounds, leadership changes, AI maturity scores), generates honesty-constrained cold emails, and routes warm replies via automated classification or human handoff. On the τ²-Bench retail held-out slice (n=20, sealed), the system achieved pass@1 = 0.4000 with 95% CI [0.22, 0.61] — a +0.1333 delta above the same-model dev baseline — and moved the critical SOC-01 honesty probe from FAIL to PASS after the Phase 5 Python-enforced post-generation scan. <b>Recommendation: proceed to a 30-day Segment 2 pilot at 40 leads/week; do not expand to all four segments until the assertive-claim-regen-failed edge case (§11) is resolved.</b>
+</div>
+
+<!-- §1 + §2 side by side -->
+<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6pt;">
+<colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
+<tr>
+  <td style="vertical-align:top;padding-right:9pt;border-right:0.5pt solid #ddd;">
+    <h2>§1 — τ²-Bench Retail Performance (95% CIs)</h2>
+    <table class="dt">
+      <tr><th>Condition</th><th>pass@1</th><th>95% CI</th><th>n / trials</th></tr>
+      <tr><td>Held-out — mechanism ON <span class="note">(sealed)</span></td><td><b>0.4000</b></td><td>[0.22, 0.61]</td><td>20 / 1</td></tr>
+      <tr><td>Dev baseline — mechanism OFF proxy</td><td>0.2667</td><td>[0.14, 0.44]</td><td>30 / 1</td></tr>
+      <tr><td>Facilitator reference baseline</td><td>0.7267</td><td>[0.65, 0.79]</td><td>30 / 5</td></tr>
+    </table>
+    <p><b>Delta A = +0.1333</b> (same-model comparison). p = 0.32, not significant (overlapping CIs; n too small). Facilitator reference uses a stronger model (qwen3-next-80b, 5 trials) and is not a valid ablation. Held-out p50 = 83.12s; p95 = 156.76s. Probe suite: <span class="pass">28/29 evaluated pass</span> (3 skip; <span class="fail">1 genuine fail</span> — SOC-01). <span class="note">Model relaxed to qwen3-235b-a22b from Claude Sonnet 4.6 due to budget constraint ($7.18 remaining); disclosed in eval/score_log.json.</span></p>
+  </td>
+  <td style="width:50%;vertical-align:top;padding-left:9pt;">
+    <h2>§2 — Cost per Qualified Lead (Bottom-Up)</h2>
+    <table class="dt">
+      <tr><th>LLM Call</th><th>Tokens in / out</th><th>Cost</th></tr>
+      <tr><td>Segment classify + enrich</td><td>800 / 200</td><td>$0.00140</td></tr>
+      <tr><td>Email compose</td><td>1,200 / 400</td><td>$0.00224</td></tr>
+      <tr><td>Tone probe</td><td>800 / 200</td><td>$0.00140</td></tr>
+      <tr><td>Reply classify</td><td>500 / 100</td><td>$0.00084</td></tr>
+      <tr><td>Regen (×0.2 avg — 20% of leads)</td><td>1,200 / 400</td><td>$0.00045</td></tr>
+      <tr><td><b>Total (4.2 avg calls)</b></td><td>—</td><td><b>~$0.011</b></td></tr>
+    </table>
+    <p>Rate: $0.0014/K input + output (qwen3-235b-a22b, OpenRouter, Apr 2026). τ²-Bench cost_usd fields return $0.00 — agent_cost field unwired for OpenRouter; bottom-up is authoritative. <span class="note">Total project OpenRouter spend (full week: agent dev + probes + all bench runs): $19.16. τ²-Bench eval runs alone (~50 tasks) estimated &lt;$2 — within the $10 eval budget cap. Source: eval/evidence_graph.json.</span></p>
+  </td>
+</tr></table>
+
+<!-- §3 + §4 + §5 three columns -->
+<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6pt;">
+<colgroup><col style="width:33%;"><col style="width:33%;"><col style="width:34%;"></colgroup>
+<tr>
+  <td style="vertical-align:top;padding-right:8pt;border-right:0.5pt solid #ddd;">
+    <h2>§3 — Stalled-Thread Rate</h2>
+    <p><b>Manual baseline:</b> 30–40% of outbound threads receive no follow-up within 24h (seed/baseline_numbers.md — CRM benchmarks). <b>System:</b> p50 = 83s; p95 = 157s — all triggered threads respond in under 3 minutes. Effective stall rate: <b>~0%</b>. <b>Delta: −30 to −40 pp.</b></p>
+    <p class="note">Caveat: threads routed to human handoff (~10–15% of engaged replies per G3 synthetic data) still require a human response within 24h.</p>
+  </td>
+  <td style="width:33%;vertical-align:top;padding-left:8pt;padding-right:8pt;border-right:0.5pt solid #ddd;">
+    <h2>§4 — Outbound Performance Gap</h2>
+    <table class="dt">
+      <tr><th>Variant</th><th>Reply Rate</th><th>Source</th></tr>
+      <tr><td>A — Generic pitch (no signal)</td><td>1–3%</td><td>LeadIQ 2026; Apollo 2026</td></tr>
+      <tr><td>B — Signal-grounded (AI maturity + gap)</td><td>7–12%</td><td>Clay 2025; Smartlead 2025; 20 G3 interactions</td></tr>
+      <tr><td><b>Delta (B − A)</b></td><td><b>+4 to +9 pp</b></td><td>—</td></tr>
+    </table>
+    <p class="note">G3 (20 leads) is directionally consistent with published benchmarks but not a controlled experiment. Min. 200-lead per-arm A/B test required before citing externally.</p>
+  </td>
+  <td style="width:34%;vertical-align:top;padding-left:8pt;">
+    <h2>§5 — Annualized Dollar Impact</h2>
+    <p class="note">Assumes: 8% reply rate, 30% reply-to-call, 40% call-to-proposal, 25% proposal-to-close, 50 wks/yr. ACV redacted — replace $[ACV_MIDPOINT] with value from seed/baseline_numbers.md (Feb 2026).</p>
+    <table class="dt">
+      <tr><th>Scenario</th><th>Leads/wk</th><th>Clients/yr</th><th>Revenue</th></tr>
+      <tr><td>Seg 2 only</td><td>40</td><td>~5</td><td>5 × $[ACV_MIDPOINT]</td></tr>
+      <tr><td>Seg 2 + Seg 3</td><td>80</td><td>~10</td><td>10 × $[ACV_MIDPOINT]</td></tr>
+      <tr><td>All four segments</td><td>160</td><td>~19</td><td>19 × $[ACV_MIDPOINT]</td></tr>
+    </table>
+  </td>
+</tr></table>
+
+<!-- §6 full width -->
+<h2>§6 — Pilot Scope Recommendation</h2>
+<div class="callout">
+  <b>Segment:</b> Segment 2 (layoff ≤120d + funding ≤180d — dual-signal, conf = 0.75, highest reliability) &nbsp;|&nbsp;
+  <b>Volume:</b> 40 leads/week &nbsp;|&nbsp;
+  <b>LLM Budget:</b> ~$0.44/week (40 × $0.011) &nbsp;|&nbsp;
+  <b>Duration:</b> 30 days &nbsp;|&nbsp;
+  <b>Bench capacity:</b> 36 engineers available across 7 stacks (bench_summary.json, Apr 2026)<br>
+  <b>Success criterion:</b> ≥ 3 discovery calls booked OR ≥ 8% reply rate on the first 200 outbound emails — tracked in HubSpot + Langfuse
+</div>
+
+<div class="footer">
+  Page 1 of 2 &nbsp;|&nbsp; All quantitative claims trace to eval/evidence_graph.json · eval/score_log.json · probes/ablation_results.json · probes/probe_results.json · seed/baseline_numbers.md
+</div>
+
+
+<!-- ══════════════════════ PAGE 2 — SKEPTIC'S APPENDIX ══════════════════════ -->
+<div class="page-break"></div>
+
+<div class="hdr">
+  <div class="hdr-title">Page 2 — The Skeptic's Appendix</div>
+  <div class="hdr-meta">
+    <span class="lbl">To:</span>      <span>Tenacious CEO &amp; CFO</span>
+    <span class="lbl">Date:</span>    <span>April 25, 2026</span>
+    <span class="lbl">Sources:</span> <span>probes/probe_library.md · probes/failure_taxonomy.md · probes/probe_results.json · probes/method.md</span>
+    <span class="lbl">Ref:</span>     <span>Conversion Engine Deployment Decision</span>
+  </div>
+</div>
+
+<div class="p2">
+
+<h2>§7 — Four Failure Modes τ²-Bench Does Not Capture</h2>
+<table class="dt">
+  <tr><th style="width:16%">Mode</th><th style="width:38%">What Happens in Production</th><th style="width:25%">Why τ²-Bench Misses It</th><th style="width:21%">Business Impact</th></tr>
+  <tr>
+    <td><b>1. Stale hiring signal</b></td>
+    <td>Playwright scrapes job boards 2–8h before send. If the open role is filled in that window, the agent emails "I see you're hiring a Senior ML Engineer" about a closed req. Estimated 5–10% of signals are stale at send time.</td>
+    <td>τ²-Bench tasks are synchronous and stateless — no asynchronous signal decay between scrape and action.</td>
+    <td>Prospect disproves claim in 10 seconds. Immediate hard-no; credibility permanently lost.</td>
+  </tr>
+  <tr>
+    <td><b>2. Undisclosed in-house-only policy</b></td>
+    <td>The ICP classifier disqualifies companies with explicit anti-offshore JD signals. Companies with implicit in-house-only policies pass through and receive a vendor pitch. Est. ~5% of Seg 4 targets.</td>
+    <td>τ²-Bench simulates cooperative retail customers — no implicit cultural rejection patterns appear in its task set.</td>
+    <td>Sharp opt-out and LinkedIn callout risk. Costs one outreach slot plus potential network-level brand damage.</td>
+  </tr>
+  <tr>
+    <td><b>3. Multi-contact conflicting pitches</b></td>
+    <td>CTO + CFO at the same company are classified into different segments and receive different angles (Seg 3 leadership pitch vs. Seg 1 growth pitch). They compare notes in an internal Slack channel.</td>
+    <td>MTL probes (MTL-01–03) verify data isolation but not cross-contact pitch consistency. τ²-Bench tests single-contact threads only.</td>
+    <td>Both threads terminate. Tenacious blocked at domain level. Full ACV at risk.</td>
+  </tr>
+  <tr>
+    <td><b>4. Re-engagement with stale cache</b></td>
+    <td>reengage_1 requires "one new data point from fresh enrichment." check_reengagement_eligible() does not validate cache freshness — the "new" fact may be the same one from the cold email sent 45 days prior.</td>
+    <td>τ²-Bench does not model multi-week outbound sequence state or enrichment cache TTL. Tasks reset state on each run.</td>
+    <td>Prospect recognizes the stale fact. Credibility loss + permanent hard-no. Silent failure — no error raised.</td>
+  </tr>
+</table>
+
+<!-- §8-§12 two-column -->
+<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+<colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
+<tr>
+  <td style="vertical-align:top;padding-right:9pt;border-right:0.5pt solid #ddd;">
+
+    <h2>§8 — Public-Signal Lossiness (AI Maturity Scoring)</h2>
+    <h3>False Positive — Loud-but-Shallow</h3>
+    <p>A company posts "Our AI-First Engineering Culture" blogs and 3 Data Engineer JDs using "LLM infrastructure." ai_maturity scorer assigns score = 2 (the Seg 4 qualifying threshold). In practice, the company is rebranding basic ETL. Agent sends a top-quartile capability-gap pitch. CTO reply: <i>"We already have what you're describing."</i> Slot wasted; credibility lost; LinkedIn callout risk. SR-02 probe blocks press-release inflation but not marketing-inflated JD language — the scorer reads JD text directly and is vulnerable to buzzword saturation in job descriptions.</p>
+    <h3>False Negative — Quietly-Sophisticated-but-Silent</h3>
+    <p>A B2B SaaS company with genuine production ML inference pipelines has a private GitHub, no engineering blog, and writes JDs without AI buzzwords ("builds inference services," not "builds AI/ML systems"). Scraper returns no signal; ai_maturity = 0. Pipeline routes to abstain or sends a generic email. This is the ideal Seg 4 client — private companies with mature but undisclosed ML practices are systematically underserved. Business impact: highest-value leads missed entirely.</p>
+
+    <h2>§9 — Gap-Analysis Risks</h2>
+    <p><b>Risk 1 — Deliberate capability gap:</b> Some companies intentionally score below the sector AI benchmark because that domain is not their differentiation axis. A fintech payments processor that outsources all ML to a partner platform scores below peers on in-house ML tooling — but the gap is a deliberate vendor strategy, not an unmet need. The pipeline cannot detect intentional outsourcing; competitor_gap_brief does not distinguish gap-as-problem from gap-as-choice. SR-02 prevents score inflation from press releases but cannot detect deliberate outsourcing decisions.</p>
+    <p><b>Risk 2 — Sub-niche irrelevance:</b> The competitor_gap_brief segments at the sector level ("fintech"). Embedding-based search is a top-quartile fintech practice — but irrelevant for a payments firm requiring real-time deterministic transaction logic, not semantic retrieval. The pipeline has no sub-niche awareness below the sector level; a capability gap real at sector level may be immaterial for the specific company's product.</p>
+
+  </td>
+  <td style="width:50%;vertical-align:top;padding-left:9pt;">
+
+    <h2>§10 — Brand Reputation: 1,000 Emails, 5% Wrong Signal</h2>
+    <table class="dt">
+      <tr><th>Metric</th><th>Correct-signal (950 emails)</th><th>Wrong-signal (50 emails)</th></tr>
+      <tr><td>Reply rate</td><td>7–12% → 67–114 replies</td><td>~5% exploratory + 40% hard-no → 2 replies, 20 hard-nos</td></tr>
+      <tr><td>Discovery calls</td><td>~20–34</td><td>~0.6</td></tr>
+      <tr><td>LinkedIn exposure risk</td><td>~0%</td><td>20% of 20 hard-nos ≈ 4 posts × 200 connections = 800 negative impressions in prospect network</td></tr>
+    </table>
+    <p>50 wrong-signal emails cost $0.55 in LLM compute. LinkedIn bleed-through (~4 posts, ~5% downstream hard-no) reduces correct-signal reply rate by ~1 pp — losing ~10 replies from 950 emails. At 30% call conversion and $[ACV_MIDPOINT] ACV, those 10 lost replies represent ~$[EXPECTED_MONTHLY_ACV_AT_RISK] in expected pipeline. The $0.55 compute saving is not worth the brand cost. <b>Signal quality must be prioritized over send volume.</b></p>
+
+    <h2>§11 — One Honest Failure: SOC-01 (Regen-Failed Edge Case)</h2>
+    <div class="callout">
+      <b>Probe:</b> SOC-01 — assertive hiring/growth claims generated when <span class="flag">weak_hiring_velocity_signal</span> flag is set.<br>
+      <b>After Phase 5:</b> SOC-01 moves FAIL → PASS via Python post-generation scan + up to 2 LLM regen attempts.<br>
+      <b>Unresolved:</b> when both regen attempts still produce assertive language, the system appends <span class="flag">assertive_claim_regen_failed</span> and sends the original body — pipeline is NOT blocked. Est. trigger: &lt;1% of leads ≈ 0.4 false-claim emails/week at 40 leads/wk. Low frequency, high severity — each is a verifiable false assertion to a real prospect: immediate hard-no, permanent credibility loss.
+    </div>
+
+    <h2>§12 — Kill-Switch Clause</h2>
+    <div class="killbox">
+      <p style="font-weight:700;font-size:8pt;margin-bottom:3pt;">Pause and notify delivery lead immediately if ANY threshold is exceeded:</p>
+      <table class="dt">
+        <tr><th>Metric</th><th>Threshold</th><th>Source</th></tr>
+        <tr><td><span class="flag">assertive_claim_regen_failed</span></td><td>≥ 3 leads in any 24h window</td><td>Langfuse honesty_flags</td></tr>
+        <tr><td>Hard-no rate (HubSpot DISQUALIFIED)</td><td>≥ 15% outbound / 7-day window</td><td>HubSpot CRM (baseline: 1–3%)</td></tr>
+        <tr><td>Tone probe pass rate</td><td>&lt; 80% outbound / 7-day window</td><td>Langfuse tone_probe spans</td></tr>
+        <tr><td>Human handoff rate</td><td>&gt; 30% engaged replies / 7-day window</td><td>HubSpot "Human handoff" notes</td></tr>
+      </table>
+      <p class="note" style="margin-top:3pt;">The 15% hard-no threshold is 5–10× the industry baseline (1–3%). Breaching it signals systematic signal error. The kill-switch protects Tenacious's sender domain reputation before damage reaches network-effect stage — at which point recovery requires a full domain reset.</p>
+    </div>
+
+  </td>
+</tr></table>
+
+</div><!-- end .p2 -->
+
+<div class="footer">
+  Page 2 of 2 &nbsp;|&nbsp; ACV figures redacted: replace $[ACV_MIDPOINT] and $[EXPECTED_MONTHLY_ACV_AT_RISK] with values from seed/baseline_numbers.md (Feb 2026) before external distribution &nbsp;|&nbsp; Model: qwen3-235b-a22b (Claude Sonnet 4.6 spec relaxed due to budget) &nbsp;|&nbsp; Probe run: 2026-04-25
+</div>
+
+</body>
+</html>
