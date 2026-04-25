@@ -2,9 +2,14 @@
 Main LLM agent — composes personalized outreach from enrichment briefs.
 
 Business rules enforced in Python after LLM call (never delegated to the model):
+  - Email body word limit: 120 words max (truncated if exceeded, flag added)
   - Segment 4 requires ai_maturity.score >= 2
   - segment_confidence < 0.6 -> override to abstain
   - Bench check: required_skills vs bench_summary.json availability (0 = cannot commit)
+  - Signal-confidence-aware phrasing (P5-A mechanism, toggle: MECHANISM_SIGNAL_AWARE_PHRASING):
+      When weak_hiring_velocity_signal or weak_ai_maturity_signal flags are set, scans the
+      composed email body for assertive claims. If found, triggers up to 2 regeneration
+      attempts with an explicit ask-language override injected into the conversation.
 """
 import json
 import os
@@ -24,6 +29,30 @@ _OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 _OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 _DEV_MODEL = os.getenv("DEV_MODEL", "qwen/qwen3-235b-a22b")
 _DEV_TEMP = float(os.getenv("DEV_MODEL_TEMPERATURE", "0.0"))
+
+# ── P5-A mechanism: signal-confidence-aware phrasing ─────────────────────────
+# Toggle OFF for ablation baseline: MECHANISM_SIGNAL_AWARE_PHRASING=false
+_MECHANISM_ENABLED = os.getenv("MECHANISM_SIGNAL_AWARE_PHRASING", "true").lower() == "true"
+
+# Flags that activate the post-generation scan
+_WEAK_SIGNAL_FLAGS = frozenset({"weak_hiring_velocity_signal", "weak_ai_maturity_signal"})
+
+# Assertive hiring/growth claim patterns the scan catches
+_ASSERTIVE_CLAIM_RE = re.compile(
+    r"\b(aggressively|rapidly|accelerat\w+|scaling up|expanding)\s+(hir\w+|grow\w+|team)\b"
+    r"|\b(strong|impressive|significant|robust|aggressive)\s+(hiring|growth|momentum|velocity|expansion)\b"
+    r"|\byou('re| are)\s+(grow\w+|hir\w+|scal\w+|expand\w+)\b"
+    r"|\byour\s+(hiring|team|engineering|headcount)\s+(is|has been|has)\s+(grow\w+|scal\w+|expand\w+)\b"
+    r"|\brapid(ly)?\s+(grow\w+|hir\w+|scal\w+|expand\w+)\b"
+    r"|\bwith\s+(your|the)\s+(growing|expanding|scaling)\s+(team|engineering|workforce)\b"
+    r"|\b(you('re| are)|your\s+company\s+is)\s+.{0,30}(grow\w+|hir\w+)\b",
+    re.IGNORECASE,
+)
+
+
+def _has_assertive_claims(text: str) -> bool:
+    return bool(_ASSERTIVE_CLAIM_RE.search(text))
+
 
 _oai_client: AsyncOpenAI | None = None
 _langfuse_client = None
@@ -299,6 +328,9 @@ INSTRUCTIONS:
 2. List required_skills: the engineering skills Tenacious would need for this engagement.
 3. Write email_body: subject line first, then body (max 120 words). Address the engineering
    leader generically — we do not have a contact name.
+   NOTE: Cal.com booking slot links will be appended automatically after your email body.
+   In Sentence 4 write the timing ask (e.g., "Worth 15 minutes Tuesday or Wednesday?")
+   but do NOT include a [Cal link] placeholder — the actual links are added programmatically.
 4. Report confidence (0.0-1.0) in your segment and angle choice.
 
 Return ONLY the JSON object. No markdown. No explanation.\
@@ -330,6 +362,14 @@ async def compose_outreach(
             "langfuse_trace_id":   str,
         }
     """
+    # P3-D1: fetch Cal.com slots before LLM call so they are ready to append
+    cal_slots: list = []
+    try:
+        from agent.calcom_handler import get_available_slots as _get_cal_slots
+        cal_slots = await _get_cal_slots(days_ahead=7)
+    except Exception:
+        cal_slots = []
+
     system_prompt = _build_system_prompt()
     user_prompt = _build_user_prompt(hiring_signal_brief, competitor_gap_brief)
 
@@ -373,9 +413,15 @@ async def compose_outreach(
     llm_confidence: float = max(0.0, min(1.0, float(parsed.get("confidence") or 0.5)))
 
     icp_segment = _normalise_segment(icp_raw)
+    active_flags: list[str] = list(hiring_signal_brief.get("honesty_flags") or [])
 
     # ── Enforce business rules in Python (E2) — NOT delegated to LLM ─────────
     decision_override = False
+
+    # Rule 0: 120-word body limit — hard Python enforcement (policy requirement)
+    email_body, body_truncated = _enforce_word_limit(email_body, max_body_words=120)
+    if body_truncated:
+        active_flags.append("email_body_truncated_at_120_words")
 
     # Rule 1: segment_confidence < 0.6 → abstain (honesty constraint)
     seg_confidence = float(hiring_signal_brief.get("segment_confidence") or 0.0)
@@ -413,17 +459,361 @@ async def compose_outreach(
         icp_segment = "abstain"
         decision_override = True
 
+    # Rule 5 (P5-A): Signal-confidence-aware phrasing mechanism
+    # Fires when: mechanism is ON, weak signal flags are present, AND assertive claims detected.
+    # Triggers up to 2 regeneration passes with an explicit ask-language override.
+    # Toggle OFF for ablation: set MECHANISM_SIGNAL_AWARE_PHRASING=false in .env
+    if _MECHANISM_ENABLED and _WEAK_SIGNAL_FLAGS.intersection(active_flags):
+        if _has_assertive_claims(email_body):
+            active_flags.append("mechanism_signal_aware_phrasing_triggered")
+            weak_flags_present = sorted(_WEAK_SIGNAL_FLAGS.intersection(active_flags))
+            _regen_success = False
+            for _attempt in range(2):
+                regen_hint = (
+                    "CRITICAL OVERRIDE — honesty flags active: "
+                    + ", ".join(weak_flags_present) + ".\n"
+                    "The email_body you generated contains assertive hiring or growth claims "
+                    "that the enrichment data does NOT support. You MUST rewrite the "
+                    "email_body field using ask language only — replace every assertive "
+                    "statement with a specific, grounded question.\n"
+                    "Swap example: 'you are aggressively expanding your ML team' "
+                    "→ 'I noticed 2 open ML roles — is velocity a constraint on your roadmap?'\n"
+                    "Return the same JSON structure with only email_body corrected."
+                )
+                regen_messages = messages + [
+                    {"role": "assistant", "content": raw_text},
+                    {"role": "user", "content": regen_hint},
+                ]
+                try:
+                    regen_resp = await _get_client().chat.completions.create(
+                        model=_DEV_MODEL,
+                        messages=regen_messages,
+                        temperature=_DEV_TEMP,
+                        max_tokens=1500,
+                    )
+                    regen_raw = (regen_resp.choices[0].message.content or "").strip()
+                    regen_parsed = _parse_json(regen_raw) or {}
+                    regen_body = str(regen_parsed.get("email_body") or "")
+                    if regen_body and not _has_assertive_claims(regen_body):
+                        email_body, _ = _enforce_word_limit(regen_body, max_body_words=120)
+                        _regen_success = True
+                        break
+                except Exception:
+                    pass
+            if not _regen_success:
+                active_flags.append("assertive_claim_regen_failed")
+
+    # P3-D1: capture body before cal block for tone scoring (cal links are not email content)
+    email_body_for_tone = email_body
+
+    # P3-D1: append Cal.com booking block AFTER 120-word body (not counted in limit)
+    from agent.utils import CALCOM_BASE_URL as _CALCOM_BASE_URL
+    email_body = email_body + _format_cal_block(cal_slots, _CALCOM_BASE_URL)
+
+    # P3-E2: score tone on the email content (subject + body, without cal block)
+    tone_probe_result: dict | None = None
+    try:
+        from agent.tone_probe import score_tone
+        subj_for_tone, body_for_tone = _split_subject_body(email_body_for_tone)
+        tone_probe_result = await score_tone(subj_for_tone, body_for_tone, trace_id)
+        if not tone_probe_result.get("passed", True):
+            active_flags.append("tone_violation")
+    except Exception:
+        pass
+
     return {
         "email_to_send": email_body,
         "icp_segment": icp_segment,
         "llm_confidence": round(llm_confidence, 4),
         "bench_match_result": bench_match_result,
         "decision_override": decision_override,
+        "honesty_flags": active_flags,
+        "tone_probe_result": tone_probe_result,
         "langfuse_trace_id": trace_id,
     }
 
 
+# ── Email 2 — research-finding follow-up (P3-C1) ─────────────────────────────
+
+_FOLLOWUP2_SYSTEM = """\
+You write Email 2 in a 3-email cold outreach sequence for Tenacious Consulting.
+
+PURPOSE: Introduce ONE specific competitor-gap finding. The new data IS the reason \
+to write — this is not a reminder or a bump.
+
+RULES:
+- Subject: "One more data point: [specific peer-company signal]" — under 60 characters
+- Body: max 100 words (enforced in Python after this call — do not exceed it)
+- Open with a one-line intro. No "just following up", "circling back", or guilt language.
+- Name a specific competitor from the gap findings where public data allows.
+- End with a soft question about the pattern — NOT a product pitch.
+- Signature: Research Partner, Tenacious Intelligence Corporation, gettenacious.com
+- No emojis. No fake urgency. No social proof dumps.
+- Tone markers: Direct, Grounded, Honest, Professional, Non-condescending.
+
+Return ONLY valid JSON: {"subject": "...", "body": "..."}
+"""
+
+
+def _build_followup2_prompt(
+    hsb: dict,
+    cgb: dict,
+    original_subject: str,
+) -> str:
+    gap_findings = cgb.get("gap_findings") or []
+    top_gap = gap_findings[0] if gap_findings else {}
+    benchmark = cgb.get("sector_top_quartile_benchmark") or "sector peers"
+    sector = cgb.get("prospect_sector") or hsb.get("ai_maturity", {})
+
+    gap_block = (
+        f"Gap finding: {json.dumps(top_gap)}"
+        if top_gap
+        else f"No specific gap data available — use sector benchmark: {benchmark}"
+    )
+
+    return (
+        f"Original Email 1 subject: {original_subject}\n\n"
+        f"Prospect: {hsb.get('prospect_name', 'the company')} "
+        f"(segment: {hsb.get('primary_segment_match', 'unknown')})\n\n"
+        f"{gap_block}\n\n"
+        f"Sector benchmark: {benchmark}\n\n"
+        "Compose Email 2. Return ONLY JSON: {\"subject\": \"...\", \"body\": \"...\"}\n"
+        "Subject under 60 chars. Body under 100 words."
+    )
+
+
+async def compose_followup_email_2(
+    hiring_signal_brief: dict,
+    competitor_gap_brief: dict,
+    original_subject: str,
+    trace_id: str = "",
+) -> dict:
+    """
+    Compose Email 2 — day-5 research-finding follow-up.
+
+    Grounded in one specific competitor-gap finding from competitor_gap_brief.
+    Body is Python-enforced to ≤ 100 words.
+
+    Returns:
+        {subject, body, email_type, word_count, honesty_flags, tone_probe_result}
+    """
+    messages = [
+        {"role": "system", "content": _FOLLOWUP2_SYSTEM},
+        {"role": "user", "content": _build_followup2_prompt(
+            hiring_signal_brief, competitor_gap_brief, original_subject
+        )},
+    ]
+
+    lf = _get_langfuse()
+    tc = _make_trace_ctx(lf, trace_id) if trace_id else _make_trace_ctx(lf, lf.create_trace_id())
+
+    raw_text = ""
+    usage = None
+    parsed: dict = {}
+
+    try:
+        resp = await _get_client().chat.completions.create(
+            model=_DEV_MODEL,
+            messages=messages,
+            temperature=_DEV_TEMP,
+            max_tokens=600,
+        )
+        raw_text = (resp.choices[0].message.content or "").strip()
+        usage = resp.usage
+        parsed = _parse_json(raw_text) or {}
+    except Exception:
+        pass
+
+    _emit_generation(lf, tc, messages, raw_text, usage)
+
+    subject = str(parsed.get("subject") or "One more data point from our research")
+    body = str(parsed.get("body") or "")
+
+    # Python-enforced 60-char subject limit and 100-word body limit
+    subject = subject[:60]
+    body, truncated = _enforce_word_limit(body, max_body_words=100)
+
+    flags = []
+    if truncated:
+        flags.append("email_body_truncated_at_100_words")
+    if not parsed:
+        flags.append("llm_parse_failed_used_fallback")
+
+    # P3-E2: tone probe
+    tone_probe_result: dict | None = None
+    try:
+        from agent.tone_probe import score_tone
+        tone_probe_result = await score_tone(subject, body, trace_id)
+        if not tone_probe_result.get("passed", True):
+            flags.append("tone_violation")
+    except Exception:
+        pass
+
+    return {
+        "subject": subject,
+        "body": body,
+        "email_type": "followup_2",
+        "word_count": len(body.split()),
+        "honesty_flags": flags,
+        "tone_probe_result": tone_probe_result,
+    }
+
+
+# ── Email 3 — gracious close (P3-C2) ─────────────────────────────────────────
+
+_CLOSING3_SYSTEM = """\
+You write Email 3 — the gracious close — in a cold outreach sequence for Tenacious Consulting.
+
+PURPOSE: Close the thread with dignity. Leave the door open without pressure.
+
+RULES:
+- Subject: "Closing the loop on [original topic]" — under 60 characters
+- Body: max 70 words (enforced in Python after this call — do not exceed it)
+- Sentence 1: acknowledge the thread is likely not a fit right now (no guilt, no apology)
+- Sentence 2: one non-pushy invitation — offer sector data, or name a specific quarter \
+  for a check-in (e.g., "Q3 2026") — NOT "sometime in the future"
+- No urgency, no "hope this finds you well", no "circling back"
+- Signature: Research Partner, Tenacious Intelligence Corporation, gettenacious.com
+- No emojis.
+- Tone markers: Direct, Grounded, Honest, Professional, Non-condescending.
+
+Return ONLY valid JSON: {"subject": "...", "body": "..."}
+"""
+
+
+def _build_closing3_prompt(
+    hsb: dict,
+    original_subject: str,
+    contact_name: str,
+) -> str:
+    name = contact_name.split()[0] if contact_name else ""
+    topic = re.sub(r"^(Context:|Note on|Congrats on|Question on|Closing the loop on)\s*",
+                   "", original_subject, flags=re.IGNORECASE).strip() or "our research note"
+    return (
+        f"Contact first name: {name or 'not known'}\n"
+        f"Original topic: {topic}\n"
+        f"Prospect: {hsb.get('prospect_name', 'the company')}\n\n"
+        "Compose Email 3 (gracious close). "
+        "Return ONLY JSON: {\"subject\": \"...\", \"body\": \"...\"}\n"
+        "Subject under 60 chars. Body under 70 words."
+    )
+
+
+async def compose_closing_email_3(
+    hiring_signal_brief: dict,
+    original_subject: str,
+    contact_name: str,
+    trace_id: str = "",
+) -> dict:
+    """
+    Compose Email 3 — day-12 gracious close.
+
+    Body is Python-enforced to ≤ 70 words.
+
+    Returns:
+        {subject, body, email_type, word_count, honesty_flags, tone_probe_result}
+    """
+    messages = [
+        {"role": "system", "content": _CLOSING3_SYSTEM},
+        {"role": "user", "content": _build_closing3_prompt(
+            hiring_signal_brief, original_subject, contact_name
+        )},
+    ]
+
+    lf = _get_langfuse()
+    tc = _make_trace_ctx(lf, trace_id) if trace_id else _make_trace_ctx(lf, lf.create_trace_id())
+
+    raw_text = ""
+    usage = None
+    parsed: dict = {}
+
+    try:
+        resp = await _get_client().chat.completions.create(
+            model=_DEV_MODEL,
+            messages=messages,
+            temperature=_DEV_TEMP,
+            max_tokens=400,
+        )
+        raw_text = (resp.choices[0].message.content or "").strip()
+        usage = resp.usage
+        parsed = _parse_json(raw_text) or {}
+    except Exception:
+        pass
+
+    _emit_generation(lf, tc, messages, raw_text, usage)
+
+    subject = str(parsed.get("subject") or f"Closing the loop on {original_subject[:40]}")
+    body = str(parsed.get("body") or "")
+
+    subject = subject[:60]
+    body, truncated = _enforce_word_limit(body, max_body_words=70)
+
+    flags = []
+    if truncated:
+        flags.append("email_body_truncated_at_70_words")
+    if not parsed:
+        flags.append("llm_parse_failed_used_fallback")
+
+    # P3-E2: tone probe
+    tone_probe_result: dict | None = None
+    try:
+        from agent.tone_probe import score_tone
+        tone_probe_result = await score_tone(subject, body, trace_id)
+        if not tone_probe_result.get("passed", True):
+            flags.append("tone_violation")
+    except Exception:
+        pass
+
+    return {
+        "subject": subject,
+        "body": body,
+        "email_type": "closing_3",
+        "word_count": len(body.split()),
+        "honesty_flags": flags,
+        "tone_probe_result": tone_probe_result,
+    }
+
+
 # ── private helpers ───────────────────────────────────────────────────────────
+
+def _split_subject_body(email_text: str) -> tuple[str, str]:
+    """Split 'subject\\n\\nbody' email text into (subject, body) at the first blank line."""
+    lines = email_text.splitlines()
+    if not lines:
+        return "", ""
+    subject = lines[0].strip()
+    body_start = 1
+    while body_start < len(lines) and not lines[body_start].strip():
+        body_start += 1
+    body = "\n".join(lines[body_start:]).strip()
+    return subject, body
+
+
+def _format_cal_block(slots: list, fallback_url: str) -> str:
+    """
+    Format up to 2 Cal.com slots as a booking-link block appended after the email body.
+    Falls back to a generic booking link if no slots are available.
+    Not counted toward the 120-word body limit.
+    """
+    if not slots:
+        return f"\n\n→ Book a 15-minute call: {fallback_url}"
+
+    lines = []
+    for slot in slots[:2]:
+        time_str = slot.get("time", "")
+        try:
+            dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+            day_name = dt.strftime("%A")          # "Tuesday"
+            mon_day = dt.strftime("%b %d")        # "Apr 29"
+            h = int(dt.strftime("%I"))            # hour 1-12, no leading zero
+            m = dt.strftime("%M")                 # "00", "30"
+            ampm = dt.strftime("%p")              # "AM" or "PM"
+            lines.append(f"→ {day_name} {mon_day}, {h}:{m} {ampm} UTC  [book: {fallback_url}]")
+        except Exception:
+            lines.append(f"→ {time_str}  [book: {fallback_url}]")
+
+    return "\n\n" + "\n".join(lines)
+
 
 def _normalise_segment(raw):
     if str(raw).lower() == "abstain":
@@ -454,6 +844,37 @@ def _parse_json(text: str) -> dict | None:
             except json.JSONDecodeError:
                 pass
     return None
+
+
+def _enforce_word_limit(email_text: str, max_body_words: int) -> tuple[str, bool]:
+    """Truncate the body portion of an email to max_body_words words.
+
+    The email format is: subject line, blank line, body. The word limit applies
+    only to the body — the subject line is never truncated.
+    Returns (email_text, was_truncated).
+    """
+    if not email_text:
+        return email_text, False
+
+    lines = email_text.split("\n")
+    # Locate the first blank line that separates subject from body
+    body_start = len(lines)  # default: no blank line found, entire text is body
+    for i, line in enumerate(lines):
+        if line.strip() == "":
+            body_start = i + 1
+            break
+
+    subject_lines = lines[:body_start]
+    body_lines = lines[body_start:]
+    body_text = "\n".join(body_lines)
+
+    words = body_text.split()
+    if len(words) <= max_body_words:
+        return email_text, False
+
+    truncated_body = " ".join(words[:max_body_words])
+    reassembled = "\n".join(subject_lines) + truncated_body
+    return reassembled, True
 
 
 def _generic_fallback_email(hsb: dict) -> str:

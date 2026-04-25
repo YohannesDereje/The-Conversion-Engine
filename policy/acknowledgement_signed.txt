@@ -1,0 +1,3 @@
+I, Yohannes Dereje, have read and agree to abide by the Tenacious Data Handling Policy
+as outlined in tenacious_sales_data/policy/data_handling_policy.md.
+Date: 2026-04-25

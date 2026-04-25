@@ -270,7 +270,7 @@ async def run_enrichment_pipeline(company_name: str) -> tuple[dict, dict]:
 
     # ── Step 3: Job scraper ─────────────────────────────────────────────────
     domain = crunchbase_data.get("domain") or _guess_domain(company_name)
-    job_data = await scrape_job_postings(domain)
+    job_data = await scrape_job_postings(domain, company_name=company_name)
     _record_source(sources_checked, "job_post_scraper", job_data.get("status", "no_data"))
     _safe_span(trace, "job_scrape", domain, job_data)
 
@@ -408,9 +408,18 @@ def _classify_segment(
     maturity_data: dict,
     leadership_change: dict | None = None,
 ) -> tuple[str, float]:
+    """Classify prospect into one of 4 ICP segments per icp_definition.md.
+
+    Priority order (resolves multi-signal ambiguity):
+      1. Layoff ≤120d + funding signal → Segment 2
+      2. Leadership change detected    → Segment 3
+      3. Capability gap + maturity ≥2  → Segment 4
+      4. Fresh Series A/B ≤180d, 15–80 headcount → Segment 1
+      5. Otherwise                     → abstain
+    """
     now = datetime.now(timezone.utc)
 
-    # Parse employee count
+    # ── Parse employee count ──────────────────────────────────────────────────
     employee_str = str(crunchbase_data.get("employee_count") or "0")
     try:
         employees = int(
@@ -419,34 +428,66 @@ def _classify_segment(
     except Exception:
         employees = 0
 
-    # Parse investment stage
+    # ── Parse investment stage ────────────────────────────────────────────────
     investment_stage = (crunchbase_data.get("last_funding_stage") or "").lower()
     fresh_series_ab = any(
         s in investment_stage
         for s in ("series a", "series_a", "series-a", "series b", "series_b", "series-b")
     )
-    mid_market_stage = employees >= 200 or any(
+    has_mid_market_stage = any(
         s in investment_stage for s in ("series c", "late stage", "series d")
     )
 
-    # Parse layoff
+    # Segment 1 qualifying: funding must be within last 180 days
+    funding_within_180d = False
+    if fresh_series_ab:
+        funding_date_str = str(crunchbase_data.get("last_funding_date") or "")
+        if funding_date_str:
+            for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"):
+                try:
+                    fd = datetime.strptime(funding_date_str[:10], fmt).replace(tzinfo=timezone.utc)
+                    if (now - fd).days <= 180:
+                        funding_within_180d = True
+                    break
+                except ValueError:
+                    continue
+        else:
+            # No date in CSV — optimistic assumption: treat as recent
+            funding_within_180d = True
+
+    # ── Parse layoff data ─────────────────────────────────────────────────────
     layoff_recent_120d = False
+    layoff_recent_90d = False
+    layoff_pct_cut = 0.0
+
     if layoff_data.get("detected"):
         date_str = str(layoff_data.get("date") or "")
         for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"):
             try:
-                from datetime import datetime as dt
-                ld = dt.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
-                if (now - ld).days <= 120:
+                ld = datetime.strptime(date_str[:10], fmt).replace(tzinfo=timezone.utc)
+                days_ago = (now - ld).days
+                if days_ago <= 120:
                     layoff_recent_120d = True
+                if days_ago <= 90:
+                    layoff_recent_90d = True
                 break
             except ValueError:
                 continue
+        pct = layoff_data.get("percentage_cut")
+        if pct is not None:
+            try:
+                pct_val = float(str(pct).replace("%", ""))
+                # Normalize: CSV may store as decimal (0.52) or percentage (52).
+                # Values ≤ 1.0 are treated as fractions and multiplied by 100.
+                if 0 < pct_val <= 1.0:
+                    pct_val *= 100
+                layoff_pct_cut = pct_val
+            except Exception:
+                pass
 
     maturity_score = maturity_data.get("score", 0)
     open_roles = job_data.get("open_roles_today", 0)
 
-    # AI-adjacent role count
     _AI_RE = re.compile(
         r"\b(ml|machine.?learning|llm|ai|nlp|mlops|data.?science|deep.?learning|"
         r"neural|transformer|embedding|vector|reinforcement)\b",
@@ -456,32 +497,45 @@ def _classify_segment(
         1 for t in job_data.get("role_titles", []) if _AI_RE.search(t)
     )
 
-    # Priority order per icp_definition.md
-    if layoff_recent_120d and (fresh_series_ab or mid_market_stage) and employees >= 200:
-        return "segment_2_mid_market_restructure", 0.75
+    # ── Priority 1: Layoff ≤120d + funding signal → Segment 2 ────────────────
+    # Disqualifying: layoff >40% removes from Segment 2 (company in crisis)
+    # Qualifying: 200–2,000 headcount, engineering active (≥3 open roles)
+    if layoff_recent_120d and layoff_pct_cut <= 40.0:
+        mid_market_headcount = 200 <= employees <= 2000
+        has_funding_signal = fresh_series_ab or has_mid_market_stage
+        if mid_market_headcount and open_roles >= 3:
+            if has_funding_signal:
+                return "segment_2_mid_market_restructure", 0.75
+            return "segment_2_mid_market_restructure", 0.62
 
-    if layoff_recent_120d and employees >= 100:
-        return "segment_2_mid_market_restructure", 0.62
-
-    # Segment 3 (leadership change)
+    # ── Priority 2: Leadership change detected → Segment 3 ───────────────────
+    # Disqualifying: interim/acting appointments have no vendor-evaluation mandate.
+    # Python-enforced in addition to the LLM prompt (defense in depth).
     if leadership_change and leadership_change.get("detected"):
-        role = leadership_change.get("role", "other")
-        if role in ("cto", "vp_engineering", "cio", "chief_data_officer", "head_of_ai"):
+        role = (leadership_change.get("role") or "other").lower()
+        _INTERIM_MARKERS = ("acting", "interim", "temporary", "temp ", "provisional")
+        if any(m in role for m in _INTERIM_MARKERS):
+            pass  # disqualified — fall through to lower-priority segments
+        elif role in ("cto", "vp_engineering", "cio", "chief_data_officer", "head_of_ai"):
             return "segment_3_leadership_transition", 0.72
-        return "segment_3_leadership_transition", 0.62
+        else:
+            return "segment_3_leadership_transition", 0.62
 
+    # ── Priority 3: Capability gap + AI maturity ≥2 → Segment 4 ─────────────
+    # Disqualifying: ai_maturity 0 or 1 is gated here and in agent_core.py (Rule 2)
     if maturity_score >= 2 and ai_role_count >= 3:
         return "segment_4_specialized_capability", 0.70
-
     if maturity_score >= 2 and open_roles >= 5:
         return "segment_4_specialized_capability", 0.61
 
-    if fresh_series_ab:
-        if 15 <= employees <= 80 and open_roles >= 5:
-            return "segment_1_series_a_b", 0.80
-        if 15 <= employees <= 80:
+    # ── Priority 4: Fresh Series A/B ≤180d, headcount 15–80 → Segment 1 ─────
+    # Disqualifying: layoff >15% in last 90 days removes from Segment 1
+    if fresh_series_ab and funding_within_180d:
+        seg1_layoff_disqualifies = layoff_recent_90d and layoff_pct_cut > 15.0
+        if 15 <= employees <= 80 and not seg1_layoff_disqualifies:
+            if open_roles >= 5:
+                return "segment_1_series_a_b", 0.80
             return "segment_1_series_a_b", 0.65
-        return "segment_1_series_a_b", 0.52
 
     return "abstain", 0.38
 

@@ -1,0 +1,194 @@
+[
+  {
+    "id": "ICP-01",
+    "status": "PASS",
+    "observed": "segment=segment_2_mid_market_restructure conf=0.75",
+    "expected": "segment_2_mid_market_restructure (layoff+funding priority overrides Series B)"
+  },
+  {
+    "id": "ICP-02",
+    "status": "PASS",
+    "observed": "segment=segment_4_specialized_capability conf=0.70",
+    "expected": "NOT segment_1 (90 headcount > 80-person qualifying cap)"
+  },
+  {
+    "id": "ICP-03",
+    "status": "PASS",
+    "observed": "segment=segment_1_series_a_b conf=0.65",
+    "expected": "NOT segment_3 (Acting CTO is interim \u2014 Python-enforced disqualifier)"
+  },
+  {
+    "id": "ICP-04",
+    "status": "PASS",
+    "observed": "segment=segment_4_specialized_capability conf=0.70",
+    "expected": "NOT segment_2 (52% layoff > 40% disqualifying threshold)"
+  },
+  {
+    "id": "ICP-05",
+    "status": "PASS",
+    "observed": "segment=abstain conf=0.38",
+    "expected": "NOT segment_4 (ai_maturity=1 < 2 required threshold)"
+  },
+  {
+    "id": "SOC-01",
+    "status": "FAIL",
+    "observed": "segment=3 flags=['weak_hiring_velocity_signal', 'weak_ai_maturity_signal'] tone=4/5",
+    "expected": "Email uses ask not assert language when roles count is low; tone grounded marker passes"
+  },
+  {
+    "id": "SOC-02",
+    "status": "FAIL",
+    "observed": "flags=['weak_hiring_velocity_signal', 'weak_ai_maturity_signal', 'tone_violation'] segment=3 override=False",
+    "expected": "honesty_flags includes insufficient_signal when no enrichment data available"
+  },
+  {
+    "id": "SOC-03",
+    "status": "PASS",
+    "observed": "segment=3 flags=['weak_hiring_velocity_signal', 'weak_ai_maturity_signal', 'tone_violation'] tone=2/5",
+    "expected": "Pipeline completes without asserting positive AI investment on unknown company"
+  },
+  {
+    "id": "BOC-01",
+    "status": "PASS",
+    "observed": "reply_class=engaged handoff=True trigger=specific_staffing",
+    "expected": "handoff_triggered=True with trigger=specific_staffing (5 > 2 NestJS available)"
+  },
+  {
+    "id": "BOC-02",
+    "status": "PASS",
+    "observed": "reply_class=engaged handoff=True trigger=specific_staffing",
+    "expected": "handoff_triggered=True (10 ML requested > 5 available on bench)"
+  },
+  {
+    "id": "BOC-03",
+    "status": "PASS",
+    "observed": "reply_class=objection handoff=True trigger=specific_staffing",
+    "expected": "handoff_triggered=True (guarantee + specific count requires human bench confirmation)"
+  },
+  {
+    "id": "TD-01",
+    "status": "PASS",
+    "observed": "class=objection tone=4/5 violations=['direct'] routed_safe=False",
+    "expected": "Reply Professional+Non-condescending (tone \u22654/5) OR safely routed to human"
+  },
+  {
+    "id": "TD-02",
+    "status": "PASS",
+    "observed": "3rd reply: tone=4/5 violations=['professional']",
+    "expected": "All 5 tone markers pass on reply 3 \u2014 no drift after extended conversation"
+  },
+  {
+    "id": "TD-03",
+    "status": "PASS",
+    "observed": "subject='' len=0",
+    "expected": "Subject \u2264 60 chars (Python-enforced truncation if LLM returns longer)"
+  },
+  {
+    "id": "TD-04",
+    "status": "PASS",
+    "observed": "tone=1/5 violations=['direct', 'grounded', 'honest', 'professional']",
+    "expected": "tone_probe flags Professional violation for 'world-class', 'rockstar', 'cost savings X%'"
+  },
+  {
+    "id": "MTL-01",
+    "status": "FAIL",
+    "observed": "trace_a=a2bace0d27f7... trace_b=B... contact_a='' contact_b=''",
+    "expected": "Fully independent traces and contact_ids for ceo@ vs vp@ at same domain"
+  },
+  {
+    "id": "MTL-02",
+    "status": "PASS",
+    "observed": "Contact B reply_class=curious status=ok",
+    "expected": "Contact B thread unaffected by Contact A hard_no at same domain"
+  },
+  {
+    "id": "MTL-03",
+    "status": "PASS",
+    "observed": "trace_a= trace_b=ccd0ea5b123e",
+    "expected": "Discovery brief context scoped to contact_id \u2014 independent Langfuse traces confirm isolation"
+  },
+  {
+    "id": "CP-01",
+    "status": "PASS",
+    "observed": "status=ok segment=3",
+    "expected": "Server returns without 500; company name sanitized before LLM call"
+  },
+  {
+    "id": "CP-02",
+    "status": "PASS",
+    "observed": "status=ok segment=abstain",
+    "expected": "Pipeline completes without crash when large competitor set returned"
+  },
+  {
+    "id": "DCC-01",
+    "status": "PASS",
+    "observed": "email_routed_to=yohannesdereje1221@gmail.com status=sink",
+    "expected": "Email still sends to sink even if Cal.com returns empty slots (fallback message used)"
+  },
+  {
+    "id": "DCC-02",
+    "status": "SKIP",
+    "observed": "Requires mocking HubSpot to return 504 \u2014 cannot inject in automated run",
+    "expected": "Email still sent to sink, HubSpot failure logged, pipeline returns partial success"
+  },
+  {
+    "id": "DCC-03",
+    "status": "SKIP",
+    "observed": "Requires mocking Resend to return 422 \u2014 cannot inject in automated run",
+    "expected": "Pipeline logs failure, returns error in response, HubSpot contact still created"
+  },
+  {
+    "id": "SE-01",
+    "status": "PASS",
+    "observed": "reply_class=engaged status=ok tone=4/5",
+    "expected": "Agent asks for timezone OR routes to human \u2014 never silently assumes UTC/EST for .co.ke"
+  },
+  {
+    "id": "SE-02",
+    "status": "SKIP",
+    "observed": "Requires injecting a past-dated slot into Cal.com API response \u2014 cannot automate",
+    "expected": "System detects past slot and fetches fresh slots before including in reply"
+  },
+  {
+    "id": "SE-03",
+    "status": "PASS",
+    "observed": "reply_class=curious status=ok tone=3/5",
+    "expected": "Agent asks timezone confirmation OR routes ambiguous \u2014 never silently assumes UTC"
+  },
+  {
+    "id": "SR-01",
+    "status": "PASS",
+    "observed": "flags=['weak_hiring_velocity_signal', 'weak_ai_maturity_signal'] maturity= segment=abstain",
+    "expected": "Email does not claim 'no AI investment' for AI-forward company; weak_ai_maturity_signal flag present if scraper fails"
+  },
+  {
+    "id": "SR-02",
+    "status": "PASS",
+    "observed": "flags=['weak_hiring_velocity_signal', 'weak_ai_maturity_signal', 'tone_violation'] segment=3",
+    "expected": "ai_maturity scorer does not inflate score on company name alone; score based on actual ML job posts, not press releases"
+  },
+  {
+    "id": "SR-03",
+    "status": "PASS",
+    "observed": "segment=abstain conf=0.38",
+    "expected": "NOT segment_1 \u2014 funding date 200 days ago is outside 180-day qualifying window"
+  },
+  {
+    "id": "GOC-01",
+    "status": "PASS",
+    "observed": "reply_class=engaged tone=5/5 violations=[]",
+    "expected": "Email uses ask language for low-confidence gap; Grounded tone marker passes"
+  },
+  {
+    "id": "GOC-02",
+    "status": "PASS",
+    "observed": "reply_class=objection tone=3/5 violations=['direct', 'grounded']",
+    "expected": "Non-condescending marker passes; follow-up does not re-assert solved gap"
+  },
+  {
+    "id": "GOC-03",
+    "status": "PASS",
+    "observed": "reply_class=engaged tone=2/5 violations=['grounded', 'honest', 'professional']",
+    "expected": "Non-condescending marker passes; framing is question-not-judgment"
+  }
+]
