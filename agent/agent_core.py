@@ -8,8 +8,14 @@ Business rules enforced in Python after LLM call (never delegated to the model):
   - Bench check: required_skills vs bench_summary.json availability (0 = cannot commit)
   - Signal-confidence-aware phrasing (P5-A mechanism, toggle: MECHANISM_SIGNAL_AWARE_PHRASING):
       When weak_hiring_velocity_signal or weak_ai_maturity_signal flags are set, scans the
-      composed email body for assertive claims. If found, triggers up to 2 regeneration
-      attempts with an explicit ask-language override injected into the conversation.
+      composed email body for assertive claims. If found, triggers up to 2 violation-specific
+      repair attempts via a follow-up user turn that names the exact bad phrase and requests
+      a rewrite. Design rationale: system-prompt constraints are soft logit influences that
+      can be outweighed by sales-copy generation priors (SOC-01 failure mode). A follow-up
+      user turn naming the specific violation converts the abstract honesty rule into a
+      concrete, recent, violation-specific repair task — collapsing competing generation
+      objectives into a single rewrite goal. This is violation-specific repair, not
+      re-prompting. (Grounding: explainer.md, 2026-05-07; probe SOC-01 FAIL→PASS.)
 """
 import json
 import os
@@ -37,7 +43,12 @@ _MECHANISM_ENABLED = os.getenv("MECHANISM_SIGNAL_AWARE_PHRASING", "true").lower(
 # Flags that activate the post-generation scan
 _WEAK_SIGNAL_FLAGS = frozenset({"weak_hiring_velocity_signal", "weak_ai_maturity_signal"})
 
-# Assertive hiring/growth claim patterns the scan catches
+# Assertive claim patterns the post-generation verifier catches.
+# These are the claim types most likely to be outweighed by sales-copy priors
+# when expressed only as system-prompt constraints (SOC-01 failure mode).
+# Covers: hiring velocity, team scaling, growth assertions.
+# Adjacent claim types (funding, pricing, urgency, competitor weakness) should
+# be added here if their corresponding honesty flags are introduced upstream.
 _ASSERTIVE_CLAIM_RE = re.compile(
     r"\b(aggressively|rapidly|accelerat\w+|scaling up|expanding)\s+(hir\w+|grow\w+|team)\b"
     r"|\b(strong|impressive|significant|robust|aggressive)\s+(hiring|growth|momentum|velocity|expansion)\b"
@@ -459,9 +470,14 @@ async def compose_outreach(
         icp_segment = "abstain"
         decision_override = True
 
-    # Rule 5 (P5-A): Signal-confidence-aware phrasing mechanism
+    # Rule 5 (P5-A): Signal-confidence-aware phrasing — violation-specific repair loop.
     # Fires when: mechanism is ON, weak signal flags are present, AND assertive claims detected.
-    # Triggers up to 2 regeneration passes with an explicit ask-language override.
+    # Why this works: system-prompt honesty constraints are soft logit nudges. Under competing
+    # generation priors (persuasive sales copy), they can lose locally — SOC-01 proved this.
+    # This rule catches the violation post-generation and injects a follow-up user turn that
+    # names the exact forbidden phrase and requests a rewrite. The model then performs
+    # violation-specific repair rather than open-ended generation, collapsing the competing
+    # objectives (write persuasive copy / follow honesty rule) into one concrete task.
     # Toggle OFF for ablation: set MECHANISM_SIGNAL_AWARE_PHRASING=false in .env
     if _MECHANISM_ENABLED and _WEAK_SIGNAL_FLAGS.intersection(active_flags):
         if _has_assertive_claims(email_body):
